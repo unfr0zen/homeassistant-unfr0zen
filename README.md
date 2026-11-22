@@ -11,6 +11,7 @@
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.10%2B-18BCF2?logo=homeassistant&logoColor=white)](https://www.home-assistant.io/)
 [![Validate](https://img.shields.io/github/actions/workflow/status/unfr0zen/homeassistant-unfr0zen/validate.yml?label=validate&logo=githubactions&logoColor=white)](https://github.com/unfr0zen/homeassistant-unfr0zen/actions/workflows/validate.yml)
 [![License](https://img.shields.io/github/license/unfr0zen/homeassistant-unfr0zen)](LICENSE)
+[![Buy Me a Coffee](https://img.shields.io/badge/Buy%20Me%20a%20Coffee-ffdd00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/willtm)
 
 [![Open your Home Assistant instance and open this repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=unfr0zen&repository=homeassistant-unfr0zen&category=integration)
 [![Open your Home Assistant instance and start setting up unfr0zen.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=unfr0zen)
@@ -28,28 +29,30 @@ or remove a change, and the Nest takes it, over whichever way Home Assistant rea
 
 ## Features
 
-- 🗓️ **Heating, cooling or heat-cool schedule as a calendar**, whichever the Nest runs. Each setpoint is a weekly
+- **Heating, cooling or heat-cool schedule as a calendar**, whichever the Nest runs. Each setpoint is a weekly
   event, from its time until the next one.
-- 🎛️ **Dashboard cards** for the heating and the hot water: the whole week at a glance, edited a day at a time.
-- ✏️ **Edit from Home Assistant.** Create, move or delete events in the calendar panel, a card or an automation; the
+- **Dashboard cards** for the heating and the hot water: the whole week at a glance, edited a day at a time.
+- **Edit from Home Assistant.** Create, move or delete events in the calendar panel, a card or an automation; the
   Nest takes the change and the calendar follows what the unit does.
-- 🚿 **Hot water schedule**, on a unit with hot water control (Heat Link), as its own calendar of on periods.
-- 📡 **Every transport unfr0zen speaks:** MQTT, Zigbee2MQTT, ZHA and Matter.
-- 🔍 **Found on its own** when the Nest publishes over MQTT.
-- 🏠 **On the Nest's own device**, beside its climate and sensors; nothing in the cloud.
-- 🌍 **In 13 languages**, following the one you use Home Assistant in.
+- **Hot water schedule**, on a unit with hot water control (Heat Link), as its own calendar of on periods.
+- **Every transport unfr0zen speaks:** MQTT, Zigbee2MQTT, ZHA and Matter.
+- **Found on its own** when the Nest publishes over MQTT.
+- **On the Nest's own device**, beside its climate and sensors; nothing in the cloud.
+- **In 13 languages**, following the one you use Home Assistant in.
 
 ## Requirements
 
 - Home Assistant 2026.10 or later.
 - A Nest set up with [unfr0zen](https://github.com/unfr0zen/unfr0zen), at a release with schedules, reached over one of:
 
-| Transport | Home Assistant needs | Heating | Hot water |
-|-|-|:-:|:-:|
-| MQTT | the MQTT integration | ✅ | ✅ |
-| Zigbee2MQTT | the MQTT integration, unfr0zen's converter | ✅ | ✅ |
-| ZHA | ZHA | ✅ | ✅ |
-| Matter (Wi-Fi or Thread) | the Matter integration | ✅ | ✅ |
+| Transport | Home Assistant needs |
+|-|-|
+| MQTT | the MQTT integration |
+| Zigbee2MQTT | the MQTT integration, unfr0zen's converter |
+| ZHA | ZHA |
+| Matter (Wi-Fi or Thread) | the Matter integration |
+
+Each carries both the heating and the hot water schedule.
 
 ## Installation
 
