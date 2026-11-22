@@ -281,7 +281,15 @@ const STYLES = `
     width: 100%; max-height: calc(100vh - 16px);
   }
   dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
-  .panel { padding: 18px; box-shadow: 0 10px 40px rgba(0,0,0,.4); }
+  .panel {
+    /* An opaque surface, as Home Assistant's dialogs have: a theme's cards
+       may be see-through. The colours mixed from the card follow it. */
+    --u0-card: var(--ha-dialog-surface-background, var(--mdc-theme-surface, var(--primary-background-color, #1c1c1e)));
+    --u0-cool: color-mix(in srgb, #7a5a4c 34%, var(--u0-card));
+    --u0-track: color-mix(in srgb, var(--primary-text-color, #e1e1e1) 7%, var(--u0-card));
+    --u0-raised: color-mix(in srgb, var(--primary-text-color, #e1e1e1) 6%, var(--u0-card));
+    padding: 18px; box-shadow: 0 10px 40px rgba(0,0,0,.4);
+  }
   .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
   .panel-title { font-weight: 600; font-size: 1.1rem; }
   .icon-button {

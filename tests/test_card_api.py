@@ -2,6 +2,7 @@
 actions, and the cards' script served and loaded."""
 
 import json
+from pathlib import Path
 import re
 from unittest.mock import MagicMock, patch
 
@@ -284,7 +285,10 @@ async def test_the_cards_are_served_and_loaded(hass, hass_client, tmp_path):
     hass.data[DATA_EXTRA_MODULE_URL] = UrlManager(MagicMock(), [])
     with patch("custom_components.unfr0zen.CARDS", cards):
         assert await async_setup_component(hass, "unfr0zen", {})
-    assert hass.data[DATA_EXTRA_MODULE_URL].urls == {"/unfr0zen/unfr0zen-cards.js?v=0.1.0"}
+    version = json.loads((Path(__file__).parents[1] / "custom_components/unfr0zen/manifest.json").read_text())[
+        "version"
+    ]
+    assert hass.data[DATA_EXTRA_MODULE_URL].urls == {f"/unfr0zen/unfr0zen-cards.js?v={version}"}
     response = await (await hass_client()).get("/unfr0zen/unfr0zen-cards.js")
     assert (response.status, await response.text()) == (200, "customElements;")
 
