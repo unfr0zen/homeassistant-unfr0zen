@@ -11,10 +11,12 @@ jobs:
   hassfest:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: home-assistant/actions/hassfest@master
 
   hacs:
+    # The HACS action validates public repositories only.
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     steps:
       - uses: hacs/action@main
@@ -24,8 +26,9 @@ jobs:
   tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: astral-sh/setup-uv@v6
       - run: uv venv -p 3.14 .venv && uv pip install -p .venv -r requirements_test.txt
       - run: .venv/bin/ruff format --check . && .venv/bin/ruff check .
       - run: .venv/bin/python -m pytest -q
+      - run: node --check custom_components/unfr0zen/frontend/unfr0zen-cards.js

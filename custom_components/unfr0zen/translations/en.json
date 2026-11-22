@@ -71,7 +71,7 @@
       "fields": {
         "days": {
           "name": "Days",
-          "description": "By day (mon to sun), the setpoints: [{\"time\": \"06:30\", \"temp\": 21}]. Days not named keep theirs."
+          "description": "By day (mon to sun), a list of setpoints, each a time (HH:MM) and a temp in °C. Days not named keep theirs."
         }
       }
     },
@@ -81,7 +81,7 @@
       "fields": {
         "days": {
           "name": "Days",
-          "description": "By day (mon to sun), the on periods: [{\"on\": \"06:00\", \"off\": \"08:00\"}]; an off before its on runs past midnight. Days not named keep theirs."
+          "description": "By day (mon to sun), a list of on periods, each an on and an off time (HH:MM); an off before its on runs past midnight. Days not named keep theirs."
         }
       }
     }
