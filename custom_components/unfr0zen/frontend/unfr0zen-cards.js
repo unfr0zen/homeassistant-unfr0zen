@@ -329,9 +329,10 @@ const STYLES = `
     --u0-warm: var(--state-climate-cool-color, #2196f3);
     --u0-cool: color-mix(in srgb, var(--u0-warm) 22%, var(--u0-card));
   }
-  /* A range schedule (heat-cool) in Home Assistant's heat-cool colour. */
+  /* A range schedule (heat-cool) in Home Assistant's purple, between its
+     heating and cooling colours. */
   :host(.ranging) {
-    --u0-warm: var(--state-climate-heat-cool-color, #ffc107);
+    --u0-warm: var(--purple-color, #926bc7);
     --u0-cool: color-mix(in srgb, var(--u0-warm) 22%, var(--u0-card));
   }
   ha-card, .panel {

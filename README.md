@@ -95,7 +95,7 @@ and the heating card show and change that one:
 |-|-|-|
 | Heat | heating setpoints | events titled `20.5 °C`; the card says **Heating** |
 | Cool | cooling setpoints | events titled `24 °C`; the card says **Cooling**, in Home Assistant's cooling colour |
-| Heat·Cool | a low and a high at each change, the Nest heating below the low and cooling above the high | events titled `19–24 °C`; the card says **Heat/cool**, with a low and a high for each change |
+| Heat·Cool | a low and a high at each change, the Nest heating below the low and cooling above the high | events titled `19–24 °C`; the card says **Heat/cool**, in Home Assistant's purple, with a low and a high for each change |
 
 To set cooling setpoints, switch the Nest to Cool (on the unit or its climate entity), then edit the schedule; for
 heat-cool ones, Heat·Cool. Switch back and each schedule is as you left it: each mode keeps its own. The Nest takes a
