@@ -15,7 +15,7 @@ from .conftest import hot_water, week
 
 DEVICE = "zigbee2mqtt/Hallway"
 IEEE = "0x00124b0012345678"
-ENTITY = "calendar.hallway_hot_water"
+ENTITY = "calendar.hallway_hot_water_schedule"
 
 
 def devices(*clusters):
@@ -89,7 +89,7 @@ async def test_no_calendar_without_the_hot_water_cluster(hass, mqtt_mock):
     entry, sent = await setup(hass, mqtt_mock, devices(), {"heating_times": week()})
     assert entry.runtime_data.hot_water is None
     assert hass.states.get(ENTITY) is None
-    assert hass.states.get("calendar.hallway_schedule") is not None
+    assert hass.states.get("calendar.hallway_heating_schedule") is not None
     assert all("hot_water_times" not in payload for _, payload in sent)
 
 
@@ -110,4 +110,4 @@ async def test_heating_comes_up_when_the_hot_water_does_not(hass, mqtt_mock):
         entry, _ = await setup(hass, mqtt_mock, devices("64513"), {"heating_times": week()})
     assert entry.runtime_data.hot_water is None
     assert hass.states.get(ENTITY) is None
-    assert hass.states.get("calendar.hallway_schedule") is not None
+    assert hass.states.get("calendar.hallway_heating_schedule") is not None

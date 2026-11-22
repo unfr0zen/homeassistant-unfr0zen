@@ -125,12 +125,12 @@ Two cards come with the integration, in the card picker as **unfr0zen heating** 
 
 ```yaml
 type: custom:unfr0zen-heating-card
-entity: calendar.nest_thermostat_schedule
+entity: calendar.nest_thermostat_heating_schedule
 ```
 
 ```yaml
 type: custom:unfr0zen-hot-water-card
-entity: calendar.nest_thermostat_hot_water
+entity: calendar.nest_thermostat_hot_water_schedule
 ```
 
 - **Heating** shows the week's setpoints, the one in effect and the next, and the thermostat's target.
@@ -152,7 +152,7 @@ which replace the days they name:
 ```yaml
 action: unfr0zen.set_schedule
 target:
-  entity_id: calendar.nest_thermostat_schedule
+  entity_id: calendar.nest_thermostat_heating_schedule
 data:
   days:
     sat: [{ time: "08:00", temp: 20.5 }, { time: "23:00", temp: 16 }]

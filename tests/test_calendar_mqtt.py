@@ -15,7 +15,7 @@ from custom_components.unfr0zen.const import DOMAIN
 from .conftest import week
 
 BASE = "nestlocal/02AA01AC"
-ENTITY = "calendar.nestlocal_02aa01ac_schedule"
+ENTITY = "calendar.nestlocal_02aa01ac_heating_schedule"
 
 
 @pytest.fixture
@@ -88,7 +88,7 @@ async def test_the_calendar_is_on_the_units_own_device(hass: HomeAssistant, mqtt
     entry.add_to_hass(hass)
     setup = hass.async_create_task(hass.config_entries.async_setup(entry.entry_id))
     await retained_on_subscribe(hass, setup, f"{BASE}/heating_times", week())
-    assert er.async_get(hass).async_get("calendar.nest_thermostat_schedule").device_id == nest.id
+    assert er.async_get(hass).async_get("calendar.nest_thermostat_heating_schedule").device_id == nest.id
     assert dr.async_entries_for_config_entry(devices, entry.entry_id) == [], "no device of its own"
 
 

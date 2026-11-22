@@ -57,10 +57,10 @@
   "entity": {
     "calendar": {
       "schedule": {
-        "name": "Schedule"
+        "name": "Heating schedule"
       },
       "hot_water": {
-        "name": "Hot water"
+        "name": "Hot water schedule"
       }
     }
   },

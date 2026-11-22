@@ -20,7 +20,7 @@ from custom_components.unfr0zen.mqtt_backend import NestlocalHotWater
 from .conftest import hot_water, week
 
 BASE = "nestlocal/02AA01AC"
-ENTITY = "calendar.nestlocal_02aa01ac_hot_water"
+ENTITY = "calendar.nestlocal_02aa01ac_hot_water_schedule"
 HEATING = week(mon=[("06:00", 20)])
 HOT_WATER = hot_water(mon=[("06:00", "08:00"), ("23:00", "01:00")], wed=[("17:00", "19:00")])
 
@@ -173,7 +173,7 @@ async def test_is_on_while_a_period_runs(hass, calendar, freezer):
 async def test_no_calendar_without_hot_water_until_it_appears(hass, mqtt_mock):
     entry = await setup(hass, {"heating_times": HEATING})
     assert hass.states.get(ENTITY) is None
-    assert hass.states.get("calendar.nestlocal_02aa01ac_schedule") is not None
+    assert hass.states.get("calendar.nestlocal_02aa01ac_heating_schedule") is not None
     # The unit gains hot water control: the entry reloads with the calendar.
     async_fire_mqtt_message(hass, f"{BASE}/hot_water_times", json.dumps(HOT_WATER))
     # The broker replays both retained topics to the reloaded entry.

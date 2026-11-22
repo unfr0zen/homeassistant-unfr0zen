@@ -2,8 +2,8 @@
 // the unfr0zen integration's calendars hold them, shown as a week of bars
 // and edited a day at a time.
 //
-//   type: custom:unfr0zen-heating-card     entity: calendar.<nest>_schedule
-//   type: custom:unfr0zen-hot-water-card   entity: calendar.<nest>_hot_water
+//   type: custom:unfr0zen-heating-card     entity: calendar.<nest>_heating_schedule
+//   type: custom:unfr0zen-hot-water-card   entity: calendar.<nest>_hot_water_schedule
 //
 // The calendars' attributes carry the week ("week", by day); a save calls the
 // integration's set_schedule / set_hot_water_schedule with the days changed.

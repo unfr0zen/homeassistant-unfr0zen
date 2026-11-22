@@ -10,7 +10,7 @@ from custom_components.unfr0zen.const import DOMAIN
 from .conftest import week
 
 DEVICE = "zigbee2mqtt/Hallway"
-ENTITY = "calendar.hallway_schedule"
+ENTITY = "calendar.hallway_heating_schedule"
 
 
 async def test_reads_and_writes_heating_times_through_zigbee2mqtt(hass, mqtt_mock, hass_ws_client):

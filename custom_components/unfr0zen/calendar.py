@@ -165,7 +165,7 @@ class ScheduleCalendar(_UnitCalendar):
         # by the entry's title until that device exists.
         self.device_entry = device
         if device is None:
-            self._attr_name = f"{coordinator.config_entry.title} Schedule"
+            self._attr_name = f"{coordinator.config_entry.title} Heating schedule"
         self._limits = TEMP_LIMITS.get(coordinator.config_entry.data[CONF_TRANSPORT], ZIGBEE_MATTER_LIMITS)
 
     @property
@@ -267,7 +267,7 @@ class HotWaterCalendar(_UnitCalendar):
         self._attr_unique_id = f"{entry.unique_id or entry.entry_id}-hot_water"
         self.device_entry = device
         if device is None:
-            self._attr_name = f"{entry.title} Hot water"
+            self._attr_name = f"{entry.title} Hot water schedule"
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:

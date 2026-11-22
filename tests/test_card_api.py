@@ -22,8 +22,8 @@ from .test_hot_water_mqtt import BASE, HOT_WATER, setup
 from .test_hot_water_z2m import devices, setup as setup_z2m
 from .test_hot_water_zha import Unit, backend
 
-HEATING_ENTITY = "calendar.nestlocal_02aa01ac_schedule"
-HOT_WATER_ENTITY = "calendar.nestlocal_02aa01ac_hot_water"
+HEATING_ENTITY = "calendar.nestlocal_02aa01ac_heating_schedule"
+HOT_WATER_ENTITY = "calendar.nestlocal_02aa01ac_hot_water_schedule"
 HEATING = week(mon=[("22:00", 17), ("06:30", 22)], sat=[("08:00", 21.5)])
 
 
@@ -69,7 +69,7 @@ async def test_the_heating_calendar_gives_its_week_and_limits(hass, unit):
         "max_temp": 35.0,
         "temp_step": 0.5,
         "max_per_day": 10,
-        "friendly_name": "nestlocal/02AA01AC Schedule",
+        "friendly_name": "nestlocal/02AA01AC Heating schedule",
         "supported_features": 7,
         "location": "",
         "description": "",
@@ -128,8 +128,8 @@ async def test_both_calendars_name_the_units_related_entities(hass, mqtt_mock):
         "hot_water_boost": "select.nest_hot_water_boost",
         "water_heater": "water_heater.nest_boiler",
     }
-    assert hass.states.get("calendar.nest_thermostat_schedule").attributes["related"] == related
-    assert hass.states.get("calendar.nest_thermostat_hot_water").attributes["related"] == related
+    assert hass.states.get("calendar.nest_thermostat_heating_schedule").attributes["related"] == related
+    assert hass.states.get("calendar.nest_thermostat_hot_water_schedule").attributes["related"] == related
 
 
 async def test_related_entities_not_found_are_null(hass, mqtt_mock):
@@ -139,7 +139,7 @@ async def test_related_entities_not_found_are_null(hass, mqtt_mock):
         config_entry_id=mqtt_entry.entry_id, identifiers={("mqtt", "nestlocal_02aa01ac")}, name="Nest Thermostat"
     )
     await setup(hass, {"heating_times": HEATING})
-    assert hass.states.get("calendar.nest_thermostat_schedule").attributes["related"] == {
+    assert hass.states.get("calendar.nest_thermostat_heating_schedule").attributes["related"] == {
         "climate": None,
         "hot_water_switch": None,
         "hot_water_active": None,
@@ -171,7 +171,7 @@ async def test_zigbee2mqtt_found_by_its_suffixed_ids_and_its_limits(hass, mqtt_m
         )
     state = {"heating_times": week(), "hot_water_times": hot_water()}
     await setup_z2m(hass, mqtt_mock, devices("64513"), state)
-    attributes = hass.states.get("calendar.hallway_schedule").attributes
+    attributes = hass.states.get("calendar.hallway_heating_schedule").attributes
     assert (attributes["min_temp"], attributes["max_temp"]) == (9.0, 32.0)
     assert {k: attributes["related"][k] for k in ("hot_water_switch", "hot_water_active", "hot_water_boost")} == {
         "hot_water_switch": "switch.hallway_hot_water_schedule",
@@ -179,7 +179,9 @@ async def test_zigbee2mqtt_found_by_its_suffixed_ids_and_its_limits(hass, mqtt_m
         "hot_water_boost": "switch.hallway_hot_water_boost",
     }
     with pytest.raises(ServiceValidationError, match=re.escape("32.5 °C is outside 9-32 °C")):
-        await call(hass, "set_schedule", "calendar.hallway_schedule", {"mon": [{"time": "06:00", "temp": 32.5}]})
+        await call(
+            hass, "set_schedule", "calendar.hallway_heating_schedule", {"mon": [{"time": "06:00", "temp": 32.5}]}
+        )
 
 
 async def test_set_schedule_replaces_the_named_days_in_one_write(hass, unit):
@@ -272,7 +274,7 @@ async def test_set_hot_water_schedule_on_zha_clears_first(hass):
     coordinator = ScheduleCoordinator(hass, entry, b)
     coordinator.data = HotWater(tuple(from_text(zha.days[d]) for d in range(7)))
     calendar = HotWaterCalendar(coordinator, None)
-    calendar.hass, calendar.entity_id = hass, "calendar.landing_hot_water"
+    calendar.hass, calendar.entity_id = hass, "calendar.landing_hot_water_schedule"
     with p:
         await calendar.async_set_hot_water_schedule({"mon": [{"on": "23:30", "off": "01:00"}], "tue": []})
     assert zha.written == [(0, ""), (1, ""), (0, "23:30-01:00")]
