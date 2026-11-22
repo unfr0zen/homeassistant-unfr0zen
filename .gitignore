@@ -1,4 +1,30 @@
-.venv/
+# Python
 __pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Environments
+.venv/
+venv/
+.env
+.env.*
+
+# Tests and linters
 .pytest_cache/
 .ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Node, for checking the cards
+node_modules/
+
+# Editors and operating systems
+.vscode/
+.idea/
+*.swp
+.DS_Store
+._*
