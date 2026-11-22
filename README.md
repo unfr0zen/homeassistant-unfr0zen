@@ -28,7 +28,8 @@ or remove a change, and the Nest takes it, over whichever way Home Assistant rea
 
 ## Features
 
-- 🗓️ **Heating schedule as a calendar.** Each setpoint is a weekly event, from its time until the next one.
+- 🗓️ **Heating or cooling schedule as a calendar**, whichever the Nest runs. Each setpoint is a weekly event, from its
+  time until the next one.
 - 🎛️ **Dashboard cards** for the heating and the hot water: the whole week at a glance, edited a day at a time.
 - ✏️ **Edit from Home Assistant.** Create, move or delete events in the calendar panel, a card or an automation; the
   Nest takes the change and the calendar follows what the unit does.
@@ -78,7 +79,24 @@ Add one entry per Nest. The calendars join the Nest's existing device.
   <img src="docs/images/calendar.png" alt="The Nest's heating schedule in Home Assistant's calendar" width="640">
 </p>
 
-### Heating
+### Heating and cooling
+
+The Nest keeps a schedule for each of its modes and runs the one for the mode it is in. The heating schedule calendar
+and the heating card show and change that one:
+
+| Nest mode | Its schedule | In Home Assistant |
+|-|-|-|
+| Heat | heating setpoints | read and changed |
+| Cool | cooling setpoints | read and changed; the card says **Cooling**, in Home Assistant's cooling colour |
+| Heat·Cool | a low and a high temperature at each change | read only: no events, and changes are refused |
+
+To set cooling setpoints, switch the Nest to Cool (on the unit or its climate entity), then edit the schedule. Switch
+back to Heat and the heating schedule is as you left it: each mode keeps its own. The Nest takes a few seconds to bring
+up the other schedule: edit once the card says **Cooling**, as a change saved before then goes to the heating one.
+
+<p align="center">
+  <img src="docs/images/cooling-card.png" alt="The card while the Nest cools: its cooling schedule, titled Cooling" width="400">
+</p>
 
 - Each setpoint is an event repeating every week on its day, from its time until the next setpoint, titled with its
   temperature, such as `20.5 °C`.
@@ -95,7 +113,7 @@ Add one entry per Nest. The calendars join the Nest's existing device.
 
 ### Limits
 
-| | Heating | Hot water |
+| | Heating or cooling | Hot water |
 |-|-|-|
 | Per day | 10 setpoints | 6 periods |
 | Temperatures | 4.5–35 °C (9–32 °C over Zigbee and Matter), in half degrees | — |
@@ -133,14 +151,16 @@ type: custom:unfr0zen-hot-water-card
 entity: calendar.nest_thermostat_hot_water_schedule
 ```
 
-- **Heating** shows the week's setpoints, the one in effect and the next, and the thermostat's target.
+- **Heating** shows the week's setpoints, the one in effect and the next, and the thermostat's target. While the Nest is
+  in Cool it shows the cooling schedule, titled **Cooling**; a Heat·Cool schedule is shown but can't be edited.
 - **Hot water** shows the week's on periods, whether hot water is on now and when it next comes on, with its boost and
   its on/off switch.
 - **Edit schedule** opens a day at a time: change, add or remove setpoints or periods, copy a day to others, and save;
   the Nest takes the days changed in one write.
 
 <p align="center">
-  <img src="docs/images/heating-editor.png" alt="Editing a day of the heating schedule" width="420">
+  <img src="docs/images/heating-editor.png" alt="Editing a day of the heating schedule" width="400">
+  <img src="docs/images/cooling-editor.png" alt="Editing a day of the cooling schedule" width="400">
 </p>
 
 The cards find the Nest's climate entity, hot water switch, boost and hot water sensor on its device. Set them yourself

@@ -703,8 +703,9 @@ class Unfr0zenHeatingCard extends ScheduleCard {
     return "Add a change";
   }
 
+  /** The schedule the Nest runs: its cooling one while it cools. */
   _title() {
-    return this._config.name ?? "Heating";
+    return this._config.name ?? (this._state?.attributes.mode === "cool" ? "Cooling" : "Heating");
   }
 
   _relatedEntity() {
@@ -720,12 +721,18 @@ class Unfr0zenHeatingCard extends ScheduleCard {
     return { min: Number(a.min_temp ?? 4.5), max: Number(a.max_temp ?? 35), step: Number(a.temp_step ?? 0.5) };
   }
 
-  /** How warm a temperature looks, 0 (the week's coolest) to 100 (its warmest). */
+  /** How strongly a setpoint is coloured, 0 to 100: the week's warmest the
+   * most when heating, its coolest the most when cooling. */
   _warmth(points) {
     const temps = points.map((p) => p.temp);
     const lo = Math.min(...temps);
     const hi = Math.max(...temps);
-    return (temp) => (hi > lo ? Math.round(Math.pow((temp - lo) / (hi - lo), 1.6) * 100) : 70);
+    const cooling = this._state?.attributes.mode === "cool";
+    return (temp) => {
+      if (hi <= lo) return 70;
+      const share = cooling ? (hi - temp) / (hi - lo) : (temp - lo) / (hi - lo);
+      return Math.round(Math.pow(share, 1.6) * 100);
+    };
   }
 
   _segmentsHtml(points, day, labels, warmth) {
