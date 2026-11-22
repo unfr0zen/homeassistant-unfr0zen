@@ -1,0 +1,50 @@
+{
+  "config": {
+    "flow_title": "{base}",
+    "step": {
+      "user": {
+        "title": "How Home Assistant reaches the Nest",
+        "menu_options": {
+          "nestlocal": "nestlocal's MQTT topics",
+          "zigbee2mqtt": "Zigbee2MQTT",
+          "zha": "ZHA",
+          "matter": "Matter"
+        }
+      },
+      "confirm": {
+        "description": "Add the schedule nestlocal publishes on {base}?"
+      },
+      "nestlocal": {
+        "data": { "base": "Topic" },
+        "data_description": { "base": "nestlocal's prefix and the unit's serial, such as nestlocal/02AA01AC123456AB" }
+      },
+      "zigbee2mqtt": {
+        "data": { "base": "Zigbee2MQTT base topic" }
+      },
+      "zigbee2mqtt_device": {
+        "data": { "friendly_name": "Thermostat" }
+      },
+      "zha": {
+        "data": { "device_id": "Thermostat" }
+      },
+      "matter": {
+        "data": { "device_id": "Thermostat" }
+      }
+    },
+    "error": {
+      "no_schedule": "No heating_times on that topic: check the prefix and serial",
+      "no_device": "Zigbee2MQTT lists no unfr0zen Nest under that base topic"
+    },
+    "abort": {
+      "already_configured": "This Nest's schedule is already added",
+      "mqtt_not_ready": "MQTT is not set up in Home Assistant",
+      "no_device": "No unfr0zen Nest in that integration",
+      "not_a_schedule": "That topic holds no schedule"
+    }
+  },
+  "entity": {
+    "calendar": {
+      "schedule": { "name": "Schedule" }
+    }
+  }
+}
