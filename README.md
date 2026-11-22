@@ -6,13 +6,13 @@
 
 **Your Nest's own heating and hot water schedules, as Home Assistant calendars you can edit.**
 
-[![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5?logo=homeassistantcommunitystore&logoColor=white)](https://hacs.xyz/docs/faq/custom_repositories/)
+[![Marketplace](https://img.shields.io/badge/Marketplace-custom-41BDF5?logo=homeassistant&logoColor=white)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=unfr0zen&repository=homeassistant-unfr0zen&category=integration)
 [![Release](https://img.shields.io/github/v/release/unfr0zen/homeassistant-unfr0zen?logo=github)](https://github.com/unfr0zen/homeassistant-unfr0zen/releases)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.10%2B-18BCF2?logo=homeassistant&logoColor=white)](https://www.home-assistant.io/)
 [![Validate](https://img.shields.io/github/actions/workflow/status/unfr0zen/homeassistant-unfr0zen/validate.yml?label=validate&logo=githubactions&logoColor=white)](https://github.com/unfr0zen/homeassistant-unfr0zen/actions/workflows/validate.yml)
 [![License](https://img.shields.io/github/license/unfr0zen/homeassistant-unfr0zen)](LICENSE)
 
-[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=unfr0zen&repository=homeassistant-unfr0zen&category=integration)
+[![Open your Home Assistant instance and open this repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=unfr0zen&repository=homeassistant-unfr0zen&category=integration)
 [![Open your Home Assistant instance and start setting up unfr0zen.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=unfr0zen)
 
 </div>
@@ -28,15 +28,16 @@ or remove a change, and the Nest takes it, over whichever way Home Assistant rea
 
 ## Features
 
-- 🗓️ **Heating or cooling schedule as a calendar**, whichever the Nest runs. Each setpoint is a weekly event, from its
-  time until the next one.
+- 🗓️ **Heating, cooling or heat-cool schedule as a calendar**, whichever the Nest runs. Each setpoint is a weekly
+  event, from its time until the next one.
 - 🎛️ **Dashboard cards** for the heating and the hot water: the whole week at a glance, edited a day at a time.
 - ✏️ **Edit from Home Assistant.** Create, move or delete events in the calendar panel, a card or an automation; the
   Nest takes the change and the calendar follows what the unit does.
 - 🚿 **Hot water schedule**, on a unit with hot water control (Heat Link), as its own calendar of on periods.
-- 📡 **Every transport unfr0zen speaks:** nestlocal's MQTT topics, Zigbee2MQTT, ZHA and Matter.
+- 📡 **Every transport unfr0zen speaks:** MQTT, Zigbee2MQTT, ZHA and Matter.
 - 🔍 **Found on its own** when the Nest publishes over MQTT.
 - 🏠 **On the Nest's own device**, beside its climate and sensors; nothing in the cloud.
+- 🌍 **In 13 languages**, following the one you use Home Assistant in.
 
 ## Requirements
 
@@ -45,18 +46,21 @@ or remove a change, and the Nest takes it, over whichever way Home Assistant rea
 
 | Transport | Home Assistant needs | Heating | Hot water |
 |-|-|:-:|:-:|
-| nestlocal's MQTT topics | the MQTT integration | ✅ | ✅ |
+| MQTT | the MQTT integration | ✅ | ✅ |
 | Zigbee2MQTT | the MQTT integration, unfr0zen's converter | ✅ | ✅ |
 | ZHA | ZHA | ✅ | ✅ |
 | Matter (Wi-Fi or Thread) | the Matter integration | ✅ | ✅ |
 
 ## Installation
 
-### HACS (recommended)
+### Marketplace (recommended)
 
-1. Click **Open in HACS** above, or in HACS open the menu → **Custom repositories**, add
-   `https://github.com/unfr0zen/homeassistant-unfr0zen` as an **Integration**.
+1. Click **Open in Marketplace** above: Home Assistant opens the repository in its Marketplace (**Settings →
+   Marketplace**). Or add `https://github.com/unfr0zen/homeassistant-unfr0zen` to the Marketplace's **Custom
+   repositories** yourself, as an **Integration**.
 2. Download **unfr0zen**, then restart Home Assistant.
+
+On Home Assistant 2026.10, which has no Marketplace, the same button opens HACS, which installs it the same way.
 
 ### Manual
 
@@ -79,29 +83,34 @@ Add one entry per Nest. The calendars join the Nest's existing device.
   <img src="docs/images/calendar.png" alt="The Nest's heating schedule in Home Assistant's calendar" width="640">
 </p>
 
-### Heating and cooling
+### Heating, cooling and heat-cool
 
 The Nest keeps a schedule for each of its modes and runs the one for the mode it is in. The heating schedule calendar
 and the heating card show and change that one:
 
 | Nest mode | Its schedule | In Home Assistant |
 |-|-|-|
-| Heat | heating setpoints | read and changed |
-| Cool | cooling setpoints | read and changed; the card says **Cooling**, in Home Assistant's cooling colour |
-| Heat·Cool | a low and a high temperature at each change | read only: no events, and changes are refused |
+| Heat | heating setpoints | events titled `20.5 °C`; the card says **Heating** |
+| Cool | cooling setpoints | events titled `24 °C`; the card says **Cooling**, in Home Assistant's cooling colour |
+| Heat·Cool | a low and a high at each change, the Nest heating below the low and cooling above the high | events titled `19–24 °C`; the card says **Heat/cool**, with a low and a high for each change |
 
-To set cooling setpoints, switch the Nest to Cool (on the unit or its climate entity), then edit the schedule. Switch
-back to Heat and the heating schedule is as you left it: each mode keeps its own. The Nest takes a few seconds to bring
-up the other schedule: edit once the card says **Cooling**, as a change saved before then goes to the heating one.
+To set cooling setpoints, switch the Nest to Cool (on the unit or its climate entity), then edit the schedule; for
+heat-cool ones, Heat·Cool. Switch back and each schedule is as you left it: each mode keeps its own. The Nest takes a
+few seconds to bring up another mode's schedule: edit once the card's title has changed, as a change saved before then
+goes to the schedule it had.
+
+The Nest itself runs its schedule, changing its target at each change's time: Home Assistant only reads and changes the
+schedule, and the Nest keeps to it without Home Assistant. A change to the setpoint already in effect applies from its
+next time.
 
 <p align="center">
   <img src="docs/images/cooling-card.png" alt="The card while the Nest cools: its cooling schedule, titled Cooling" width="400">
 </p>
 
 - Each setpoint is an event repeating every week on its day, from its time until the next setpoint, titled with its
-  temperature, such as `20.5 °C`.
+  temperature, such as `20.5 °C`, or in heat-cool its low and high, such as `19–24 °C`.
 - **Add a change:** a new event that repeats weekly with no end, at the time it should start, titled with the
-  temperature. It may repeat on several days; its end is ignored, as the next setpoint ends it.
+  temperature (or the low and high). It may repeat on several days; its end is ignored, as the next setpoint ends it.
 - **Edit or delete** one occurrence and the whole series changes: the Nest's schedule is the same every week.
 - Writing the schedule turns off the Nest's Auto-Schedule, so it doesn't learn over your changes.
 
@@ -113,11 +122,11 @@ up the other schedule: edit once the card says **Cooling**, as a change saved be
 
 ### Limits
 
-| | Heating or cooling | Hot water |
+| | Heating, cooling or heat-cool | Hot water |
 |-|-|-|
 | Per day | 10 setpoints | 6 periods |
-| Temperatures | 4.5–35 °C (9–32 °C over Zigbee and Matter), in half degrees | — |
-| Refused | one-off events, other repeats, all-day events, a heat-cool (range) schedule | one-off events, other repeats, all-day events, overlapping periods |
+| Temperatures | 4.5–35 °C (9–32 °C over Zigbee and Matter), in half degrees; a heat-cool high 1.5 °C or more above its low | — |
+| Refused | one-off events, other repeats, all-day events | one-off events, other repeats, all-day events, overlapping periods |
 
 A refused change is reported with the reason and leaves the Nest's schedule as it was.
 
@@ -126,7 +135,7 @@ A refused change is reported with the reason and leaves the Nest's schedule as i
 
 | Transport | Heating | Hot water |
 |-|-|-|
-| nestlocal MQTT | `<prefix>/<serial>/heating_times`, `set/heating_times` | `<prefix>/<serial>/hot_water_times`, `set/hot_water_times` |
+| MQTT | `<prefix>/<serial>/heating_times`, `set/heating_times` | `<prefix>/<serial>/hot_water_times`, `set/hot_water_times` |
 | Zigbee2MQTT | the device's `heating_times` (Set/Get Weekly Schedule) | the device's `hot_water_times` |
 | ZHA | Thermostat cluster Set/Get Weekly Schedule, one day per request | manufacturer cluster `0xFC01`, one attribute per day |
 | Matter | Thermostat cluster `Schedules` (Matter 1.4), written in an atomic write | the same, on the Nest's Water Heater endpoint |
@@ -151,8 +160,9 @@ type: custom:unfr0zen-hot-water-card
 entity: calendar.nest_thermostat_hot_water_schedule
 ```
 
-- **Heating** shows the week's setpoints, the one in effect and the next, and the thermostat's target. While the Nest is
-  in Cool it shows the cooling schedule, titled **Cooling**; a Heat·Cool schedule is shown but can't be edited.
+- **Heating** shows the week's setpoints, the one in effect and the next, and the thermostat's target, lit in Home
+  Assistant's heating or cooling colour while the Nest heats or cools. In Cool it shows the cooling schedule, titled
+  **Cooling**; in Heat·Cool the heat-cool one, titled **Heat/cool**, each change a low and a high.
 - **Hot water** shows the week's on periods, whether hot water is on now and when it next comes on, with its boost and
   its on/off switch.
 - **Edit schedule** opens a day at a time: change, add or remove setpoints or periods, copy a day to others, and save;
@@ -161,6 +171,11 @@ entity: calendar.nest_thermostat_hot_water_schedule
 <p align="center">
   <img src="docs/images/heating-editor.png" alt="Editing a day of the heating schedule" width="400">
   <img src="docs/images/cooling-editor.png" alt="Editing a day of the cooling schedule" width="400">
+</p>
+
+<p align="center">
+  <img src="docs/images/heat-cool-card.png" alt="The card while the Nest is in Heat·Cool: lows and highs" width="400">
+  <img src="docs/images/heat-cool-editor.png" alt="Editing a day of the heat-cool schedule: a low and a high for each change" width="400">
 </p>
 
 The cards find the Nest's climate entity, hot water switch, boost and hot water sensor on its device. Set them yourself
@@ -177,6 +192,21 @@ data:
   days:
     sat: [{ time: "08:00", temp: 20.5 }, { time: "23:00", temp: 16 }]
 ```
+
+In heat-cool, each setpoint is a `low` and a `high` instead of a `temp`:
+`sat: [{ time: "08:00", low: 20.5, high: 24 }]`.
+
+## Languages
+
+The integration and its cards are in English, Čeština, Dansk, Deutsch, Español, Français, Italiano, Nederlands, Norsk
+bokmål, Polski, Português (Brasil), Svenska and 简体中文, in the language you use Home Assistant in; anything a
+translation lacks is in English.
+
+To add one, copy each `en.json` under a new language code, translate its values (keep the keys and the `{placeholders}`),
+and add the code to `LANGUAGES` at the top of the cards' script:
+
+- `custom_components/unfr0zen/translations/`: setup, entity names, actions and errors, as Home Assistant reads them.
+- `custom_components/unfr0zen/frontend/locales/`: the cards. Day names and numbers come from the browser.
 
 ## Development
 

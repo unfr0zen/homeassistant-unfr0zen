@@ -12,8 +12,7 @@ import datetime as dt
 from itertools import pairwise
 from typing import Any
 
-from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-
+from .errors import error, invalid
 from .schedule import DAYS, check_days, hhmm, parse_hhmm, weekly_days
 
 MAX_PER_DAY = 6
@@ -96,10 +95,10 @@ def check_day(day: int, periods: Periods) -> Periods:
     """`periods`, sorted, or an error if the Nest can't take them."""
     periods = tuple(sorted(periods))
     if len(periods) > MAX_PER_DAY:
-        raise ServiceValidationError(f"The Nest takes at most {MAX_PER_DAY} hot water periods a day")
+        raise invalid("too_many_periods", max=MAX_PER_DAY)
     for a, b in pairwise(periods):
         if a.end > b.on:
-            raise ServiceValidationError(f"Hot water periods overlap on {DAYS[day]} at {hhmm(b.on)}")
+            raise invalid("periods_overlap", day=DAYS[day], time=hhmm(b.on))
     return periods
 
 
@@ -108,7 +107,7 @@ def check_week(days: tuple[Periods, ...] | list[Periods]) -> None:
     for d in range(7):
         after = days[(d + 1) % 7]
         if days[d] and after and days[d][-1].end - DAY_MINUTES > after[0].on:
-            raise ServiceValidationError(f"Hot water periods overlap on {DAYS[(d + 1) % 7]} at {hhmm(after[0].on)}")
+            raise invalid("periods_overlap", day=DAYS[(d + 1) % 7], time=hhmm(after[0].on))
 
 
 def parse_days(value: Any) -> dict[int, Periods]:
@@ -119,9 +118,9 @@ def parse_days(value: Any) -> dict[int, Periods]:
         for entry in entries:
             on, off = parse_hhmm(entry.get("on")), parse_hhmm(entry.get("off"))
             if on is None or off is None:
-                raise ServiceValidationError(f"{DAYS[day]}: on and off must be HH:MM, not {entry!r}")
+                raise invalid("period_times", day=DAYS[day], entry=repr(entry))
             if on == off:
-                raise ServiceValidationError(f"{DAYS[day]} {hhmm(on)}: a period goes off after it comes on")
+                raise invalid("period_empty", day=DAYS[day], time=hhmm(on))
             periods.append(Period(on, off))
         out[day] = check_day(day, tuple(periods))
     return out
@@ -176,7 +175,7 @@ def from_uid(hot_water: HotWater, value: str) -> tuple[int, Period]:
         for p in hot_water.days[day]:
             if hhmm(p.on) == time:
                 return day, p
-    raise HomeAssistantError(f"No hot water period {value} in the schedule")
+    raise error("no_period", uid=value)
 
 
 def parse_event(event: dict[str, Any], tz: dt.tzinfo) -> tuple[list[int], Period]:
@@ -184,16 +183,16 @@ def parse_event(event: dict[str, Any], tz: dt.tzinfo) -> tuple[list[int], Period
     weekly, and last more than nothing and at most a day."""
     start, end = event.get("dtstart"), event.get("dtend")
     if not isinstance(start, dt.datetime) or not isinstance(end, dt.datetime):
-        raise HomeAssistantError("A hot water period needs start and end times, not whole days")
+        raise error("period_whole_days")
     start, end = (t.astimezone(tz) if t.tzinfo else t.replace(tzinfo=tz) for t in (start, end))
     if any(t.second or t.microsecond for t in (start, end)):
-        raise HomeAssistantError("A hot water period starts and ends on whole minutes")
+        raise error("period_whole_minutes")
     # By the clock on the wall, which the unit keeps: the same day and later,
     # or the next day and earlier, whatever the clocks change by.
     on, off = start.hour * 60 + start.minute, end.hour * 60 + end.minute
     days = (end.date() - start.date()).days
     if not ((days == 0 and off > on) or (days == 1 and off < on)):
-        raise HomeAssistantError("A hot water period ends after it starts, within a day")
+        raise error("period_order")
     return weekly_days(event.get("rrule") or "", start.weekday()), Period(on, off)
 
 

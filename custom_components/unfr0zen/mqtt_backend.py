@@ -10,10 +10,10 @@ from typing import Any
 
 from homeassistant.components import mqtt
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import HomeAssistantError
 
 from . import hotwater, schedule
 from .backend import Backend, HotWaterBackend
+from .errors import error
 
 READ_TIMEOUT = 30
 WRITE_TIMEOUT = 30
@@ -28,7 +28,7 @@ class _MqttBackend(Backend):
     """A schedule that arrives on a state topic: the heating one, by default."""
 
     key = "heating_times"
-    what = "schedule"
+    kind = "schedule"
     parse = staticmethod(schedule.from_json)
     encode = staticmethod(schedule.days_json)
 
@@ -115,7 +115,7 @@ class NestlocalBackend(_MqttBackend):
         try:
             return await self._await(_any, _nothing, READ_TIMEOUT)
         except TimeoutError as err:
-            raise HomeAssistantError(f"Nothing on {self.state_topic}") from err
+            raise error("mqtt_nothing", topic=self.state_topic) from err
 
     async def async_write(self, current: Any, days: dict[int, Any]) -> None:
         try:
@@ -123,7 +123,7 @@ class NestlocalBackend(_MqttBackend):
                 _having(days), lambda: self._publish(f"{self.base}/set/{self.key}", self.encode(days)), WRITE_TIMEOUT
             )
         except TimeoutError as err:
-            raise HomeAssistantError(f"The Nest did not take the {self.what}: see nestlocal's log") from err
+            raise error(f"mqtt_not_taken_{self.kind}") from err
 
 
 class NestlocalHotWater(NestlocalBackend, HotWaterBackend):
@@ -131,7 +131,7 @@ class NestlocalHotWater(NestlocalBackend, HotWaterBackend):
     water control, empty or absent without."""
 
     key = "hot_water_times"
-    what = "hot water schedule"
+    kind = "hot_water"
     parse = staticmethod(hotwater.from_json)
     encode = staticmethod(hotwater.days_json)
 
@@ -193,7 +193,7 @@ class Z2mBackend(_MqttBackend):
         except TimeoutError as err:
             if self.latest is not None:
                 return self.latest
-            raise HomeAssistantError(f"Zigbee2MQTT sent no {self.key} for {self.state_topic}") from err
+            raise error("z2m_nothing", key=self.key, topic=self.state_topic) from err
 
     async def async_write(self, current: Any, days: dict[int, Any]) -> None:
         try:
@@ -205,7 +205,7 @@ class Z2mBackend(_MqttBackend):
                 WRITE_TIMEOUT,
             )
         except TimeoutError as err:
-            raise HomeAssistantError(f"The Nest did not take the {self.what} through Zigbee2MQTT") from err
+            raise error(f"z2m_not_taken_{self.kind}") from err
 
 
 class Z2mHotWater(Z2mBackend, HotWaterBackend):
@@ -213,7 +213,7 @@ class Z2mHotWater(Z2mBackend, HotWaterBackend):
     hot water cluster on the unit's endpoint 1."""
 
     key = "hot_water_times"
-    what = "hot water schedule"
+    kind = "hot_water"
     parse = staticmethod(hotwater.from_json)
     encode = staticmethod(hotwater.days_json)
 

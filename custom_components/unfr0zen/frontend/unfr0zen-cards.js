@@ -7,13 +7,100 @@
 //
 // The calendars' attributes carry the week ("week", by day); a save calls the
 // integration's set_schedule / set_hot_water_schedule with the days changed.
+//
+// The cards' words are in locales/<language>.json beside this file, English
+// the base: a language's file need only have the strings it translates.
+// Day names and numbers come from the browser, in the same language.
 
 const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
-const DAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-const DAY_LONG = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 const DAY = 24 * 60;
 const WEEK = 7 * DAY;
 const DOCS = "https://github.com/unfr0zen/homeassistant-unfr0zen";
+
+// ----- Words -----
+
+/** The languages with a locales file; another falls back to its base language, then English. */
+const LANGUAGES = ["cs", "da", "de", "en", "es", "fr", "it", "nb", "nl", "pl", "pt-BR", "sv", "zh-Hans"];
+/** Base languages whose file goes by a region or script. */
+const LANGUAGE_FILE = { pt: "pt-BR", zh: "zh-Hans", no: "nb" };
+const VERSION = new URL(import.meta.url).searchParams.get("v") ?? "";
+const STRINGS = {};
+let language = "en";
+
+/** A language's words, or null when they couldn't be had: tried again later. */
+async function fetchStrings(lang) {
+  try {
+    const response = await fetch(new URL(`locales/${lang}.json?v=${VERSION}`, import.meta.url));
+    return response.ok ? await response.json() : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The locales file for a language tag such as "de", "pt-BR" or "en-GB", if there is one. */
+function languageFile(tag) {
+  if (!tag) return "en";
+  if (LANGUAGES.includes(tag)) return tag;
+  const base = tag.split("-")[0];
+  if (LANGUAGES.includes(base)) return base;
+  return LANGUAGE_FILE[base] ?? "en";
+}
+
+const loading = new Map();
+
+/** Loads a language's words once; a failed load is tried again on the next call. */
+function load(lang) {
+  if (!loading.has(lang)) {
+    loading.set(
+      lang,
+      fetchStrings(lang).then((words) => {
+        if (words) STRINGS[lang] = words;
+        else loading.delete(lang);
+      }),
+    );
+  }
+  return loading.get(lang);
+}
+
+/** Has the cards speak `tag`'s language; resolves once its words are loaded. */
+function useLanguage(tag) {
+  const lang = languageFile(tag);
+  return Promise.all([load("en"), lang === "en" ? null : load(lang)]).then(() => {
+    // Its words, or the language it had until they come.
+    if (language !== lang && STRINGS[lang]) {
+      language = lang;
+      pickerEntries();
+    }
+  });
+}
+
+/** A string in the cards' language, its {placeholders} filled in from `values`. */
+function t(key, values = {}) {
+  const text = STRINGS[language]?.[key] ?? STRINGS.en?.[key] ?? key;
+  return text.replace(/\{(\w+)\}/g, (all, name) => (name in values ? String(values[name]) : all));
+}
+
+/** The cards in the card picker, in the cards' language. */
+function pickerEntries() {
+  window.customCards = window.customCards || [];
+  for (const card of [
+    { type: "unfr0zen-heating-card", name: t("picker_heating_name"), description: t("picker_heating_description") },
+    { type: "unfr0zen-hot-water-card", name: t("picker_hot_water_name"), description: t("picker_hot_water_description") },
+  ]) {
+    const entry = window.customCards.find((c) => c.type === card.type);
+    if (entry) Object.assign(entry, card);
+    else window.customCards.push({ ...card, preview: true, documentationURL: DOCS });
+  }
+}
+
+/** A day's name (0 Monday) in the cards' language, "short" or "long". */
+function dayName(day, style = "short") {
+  // 2024-01-01 was a Monday.
+  const date = new Date(Date.UTC(2024, 0, 1 + day));
+  return new Intl.DateTimeFormat(language, { weekday: style, timeZone: "UTC" }).format(date);
+}
+
+await useLanguage(document.documentElement.lang || navigator.language);
 
 // ----- Times and the clock -----
 
@@ -33,8 +120,8 @@ function hhmm(minutes) {
 function duration(minutes) {
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  if (!h) return `${m}m`;
-  return m ? `${h}h${String(m).padStart(2, "0")}` : `${h}h`;
+  if (!h) return t("duration_minutes", { m });
+  return m ? t("duration_hours_minutes", { h, mm: String(m).padStart(2, "0") }) : t("duration_hours", { h });
 }
 
 /** Now in Home Assistant's time zone: the day (0 Monday) and minutes after midnight. */
@@ -53,15 +140,15 @@ function zonedNow(timeZone) {
       .formatToParts(new Date());
   }
   const part = (type) => parts.find((p) => p.type === type)?.value;
-  const day = DAY_SHORT.indexOf(part("weekday"));
+  const day = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].indexOf(part("weekday"));
   return { day: day < 0 ? 0 : day, minute: Number(part("hour")) * 60 + Number(part("minute")) };
 }
 
 /** When a change `ahead` minutes from now, on `day`, at `minute`, happens: "at 22:30", "tomorrow 06:30", "Wed 06:30". */
 function when(now, day, minute, ahead) {
-  if (day === now.day && ahead < DAY) return `at ${hhmm(minute)}`;
-  if (day === (now.day + 1) % 7 && ahead < 2 * DAY) return `tomorrow ${hhmm(minute)}`;
-  return `${DAY_SHORT[day]} ${hhmm(minute)}`;
+  if (day === now.day && ahead < DAY) return t("when_at", { time: hhmm(minute) });
+  if (day === (now.day + 1) % 7 && ahead < 2 * DAY) return t("when_tomorrow", { time: hhmm(minute) });
+  return t("when_day", { day: dayName(day), time: hhmm(minute) });
 }
 
 function escapeHtml(text) {
@@ -74,7 +161,7 @@ let fahrenheit = false;
 
 /** A temperature as Home Assistant shows them. */
 function shown(temp) {
-  return `${Number.isInteger(temp) ? temp : temp.toFixed(1)}°`;
+  return `${new Intl.NumberFormat(language, { maximumFractionDigits: 1 }).format(temp)}°`;
 }
 
 /** A schedule's Celsius temperature, in the unit Home Assistant shows. */
@@ -84,13 +171,18 @@ function degrees(celsius) {
 
 // ----- Heating: setpoints holding until the next -----
 
-/** The week's setpoints in week order: {day, minute, temp}. */
+/** The least a range's high is above its low, °C, as the Nest keeps them. */
+const RANGE_GAP = 1.5;
+
+/** The week's setpoints in week order: {day, minute, temp, high}; a range
+ * schedule's temp is its low, and high its high (null otherwise). */
 function setpoints(week) {
   const out = [];
   DAYS.forEach((name, day) => {
     for (const p of week?.[name] ?? []) {
       const minute = toMinutes(p.time);
-      if (minute !== null) out.push({ day, minute, temp: Number(p.temp) });
+      const high = p.high === undefined ? null : Number(p.high);
+      if (minute !== null) out.push({ day, minute, temp: Number(p.low ?? p.temp), high });
     }
   });
   return out.sort((a, b) => a.day * DAY + a.minute - (b.day * DAY + b.minute));
@@ -101,23 +193,33 @@ function carried(points, day) {
   for (let back = 1; back <= 7; back++) {
     const d = (day - back + 7) % 7;
     const last = points.filter((p) => p.day === d).at(-1);
-    if (last) return last.temp;
+    if (last) return last;
   }
   return null;
 }
 
-/** A day's segments, {start, end, temp}: from midnight, then each setpoint until the next. */
+/** A setpoint's temperatures as shown: one, or a range's low and high. */
+function temps(p) {
+  return p.high === null || p.high === undefined ? degrees(p.temp) : `${degrees(p.temp)}–${degrees(p.high)}`;
+}
+
+/** Whether two setpoints set the same temperatures. */
+function same(a, b) {
+  return a.temp === b.temp && (a.high ?? null) === (b.high ?? null);
+}
+
+/** A day's segments, {start, end, temp, high}: from midnight, then each setpoint until the next. */
 function heatingSegments(points, day) {
   const today = points.filter((p) => p.day === day);
   const segments = [];
   let start = 0;
-  let temp = carried(points, day);
+  let from = carried(points, day) ?? { temp: null, high: null };
   for (const p of today) {
-    if (p.minute > start) segments.push({ start, end: p.minute, temp });
+    if (p.minute > start) segments.push({ start, end: p.minute, temp: from.temp, high: from.high });
     start = p.minute;
-    temp = p.temp;
+    from = p;
   }
-  segments.push({ start, end: DAY, temp });
+  segments.push({ start, end: DAY, temp: from.temp, high: from.high });
   return segments.filter((s) => s.end > s.start);
 }
 
@@ -129,7 +231,7 @@ function heatingNow(points, now) {
   const current = [...points].reverse().find((p) => abs(p) <= at) ?? points.at(-1);
   for (let i = 1; i <= points.length; i++) {
     const p = points[(points.indexOf(current) + i) % points.length];
-    if (p.temp !== current.temp) {
+    if (!same(p, current)) {
       const ahead = (abs(p) - at + WEEK) % WEEK || WEEK;
       return { current, next: { ...p, ahead } };
     }
@@ -197,6 +299,9 @@ const STYLES = `
     --u0-on: var(--state-water_heater-eco-color, #4caf50);
     --u0-boost: var(--state-water_heater-high_demand-color, #ff6f22);
     --u0-card: var(--ha-card-background, var(--card-background-color, #1c1c1e));
+    /* An opaque surface, as Home Assistant's dialogs have, for what floats
+       over a card: a theme's cards may be see-through. */
+    --u0-surface: var(--ha-dialog-surface-background, var(--mdc-theme-surface, var(--primary-background-color, #1c1c1e)));
     --u0-text: var(--primary-text-color, #e1e1e1);
     --u0-muted: var(--secondary-text-color, #9b9b9b);
     --u0-radius: 14px;
@@ -205,6 +310,11 @@ const STYLES = `
   /* A cooling schedule in the cooling colour. */
   :host(.cooling) {
     --u0-warm: var(--state-climate-cool-color, #2196f3);
+    --u0-cool: color-mix(in srgb, var(--u0-warm) 22%, var(--u0-card));
+  }
+  /* A range schedule (heat-cool) in Home Assistant's heat-cool colour. */
+  :host(.ranging) {
+    --u0-warm: var(--state-climate-heat-cool-color, #ffc107);
     --u0-cool: color-mix(in srgb, var(--u0-warm) 22%, var(--u0-card));
   }
   ha-card, .panel {
@@ -223,6 +333,9 @@ const STYLES = `
     background: var(--u0-raised); font-weight: 600; font-size: 1.05rem; border: 0; color: inherit; font-family: inherit;
   }
   .pill.on { background: var(--u0-on); color: #fff; }
+  /* The thermostat's target while it heats or cools, in Home Assistant's colours. */
+  .pill.heating { background: var(--state-climate-heat-color, #ff6f22); color: #fff; }
+  .pill.cooling { background: var(--state-climate-cool-color, #2196f3); color: #fff; }
   button.pill { cursor: pointer; }
   .pill ha-icon { --mdc-icon-size: 20px; }
   .controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
@@ -230,8 +343,9 @@ const STYLES = `
   .pill.boost { font-size: 0.95rem; padding: 8px 14px; }
   .pill.boost.active { background: var(--u0-boost); color: #fff; }
   .menu {
+    --u0-raised: color-mix(in srgb, var(--primary-text-color, #e1e1e1) 6%, var(--u0-surface));
     position: absolute; right: 0; top: calc(100% + 6px); z-index: 5; min-width: 140px; padding: 6px;
-    background: var(--u0-card); border: 1px solid var(--u0-line); border-radius: 14px;
+    background: var(--u0-surface); border: 1px solid var(--u0-line); border-radius: 14px;
     box-shadow: 0 10px 30px rgba(0,0,0,.35); display: flex; flex-direction: column;
   }
   .menu-item {
@@ -290,9 +404,8 @@ const STYLES = `
   }
   dialog::backdrop { background: rgba(0, 0, 0, 0.55); }
   .panel {
-    /* An opaque surface, as Home Assistant's dialogs have: a theme's cards
-       may be see-through. The colours mixed from the card follow it. */
-    --u0-card: var(--ha-dialog-surface-background, var(--mdc-theme-surface, var(--primary-background-color, #1c1c1e)));
+    /* The opaque surface; the colours mixed from the card follow it. */
+    --u0-card: var(--u0-surface);
     --u0-cool: color-mix(in srgb, var(--u0-warm) 22%, var(--u0-card));
     --u0-track: color-mix(in srgb, var(--primary-text-color, #e1e1e1) 7%, var(--u0-card));
     --u0-raised: color-mix(in srgb, var(--primary-text-color, #e1e1e1) 6%, var(--u0-card));
@@ -337,6 +450,11 @@ const STYLES = `
   .dash { color: var(--u0-muted); }
   .grow { flex: 1; }
   .stepper { display: inline-flex; align-items: center; gap: 6px; }
+  .stepper .which { color: var(--u0-muted); font-size: 0.8rem; font-weight: 600; }
+  /* A range: the time and remove on one line, the low and high under them. */
+  .row.range { flex-wrap: wrap; row-gap: 8px; }
+  .row.range .steppers { flex-basis: 100%; display: flex; justify-content: space-between; gap: 8px; }
+  .seg.divided { box-shadow: inset 2px 0 0 var(--u0-surface); }
   .round {
     width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--u0-card); color: var(--u0-text);
     display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font: inherit;
@@ -387,7 +505,7 @@ class ScheduleCard extends HTMLElement {
   }
 
   setConfig(config) {
-    if (!config?.entity) throw new Error("Choose the unfr0zen calendar (entity)");
+    if (!config?.entity) throw new Error(t("choose_calendar"));
     this._config = config;
     this._rendered = null;
     this._render();
@@ -395,6 +513,14 @@ class ScheduleCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    // In the language the user has Home Assistant in; each card redrawn
+    // once its words arrive, if it was drawn in another.
+    useLanguage(hass.locale?.language ?? hass.language).then(() => {
+      if (this._language !== language) {
+        this._render();
+        this._renderEditor();
+      }
+    });
     fahrenheit = hass.config?.unit_system?.temperature === "°F";
     const state = hass.states[this._config?.entity];
     const key = [state, ...this._relatedEntities().map((id) => hass.states[id])];
@@ -453,10 +579,13 @@ class ScheduleCard extends HTMLElement {
     const state = this._state;
     if (!this._hass) return;
     if (!state) {
-      card.innerHTML = `<div class="warning">Entity not found: ${escapeHtml(this._config.entity)}</div>`;
+      card.innerHTML = `<div class="warning">${escapeHtml(t("entity_not_found", { entity: this._config.entity }))}</div>`;
       return;
     }
     this.classList.toggle("cooling", state.attributes.mode === "cool");
+    this.classList.toggle("ranging", state.attributes.mode === "range");
+    this.setAttribute("lang", language);
+    this._language = language;
     card.innerHTML = this._cardHtml(state);
   }
 
@@ -469,18 +598,14 @@ class ScheduleCard extends HTMLElement {
   }
 
   _editable(state) {
-    return state.attributes.writable !== false && state.attributes.mode !== "range";
+    return state.attributes.writable !== false;
   }
 
   _footer(state) {
     if (this._editable(state)) {
-      return `<button class="edit" data-action="open"><ha-icon icon="mdi:pencil-outline"></ha-icon>Edit schedule</button>`;
+      return `<button class="edit" data-action="open" title="${t("edit_hint")}"><ha-icon icon="mdi:pencil-outline"></ha-icon>${t("edit")}</button>`;
     }
-    const why =
-      state.attributes.mode === "range"
-        ? "A heat-cool schedule can't be edited here."
-        : "This schedule can't be changed from Home Assistant.";
-    return `<div class="note">${why}</div>`;
+    return `<div class="note">${t("not_writable")}</div>`;
   }
 
   /** A 24-hour time field, "06 : 30", for row `i`'s `field`. */
@@ -488,7 +613,7 @@ class ScheduleCard extends HTMLElement {
     const [h, m] = (value ?? "").split(":");
     const part = (name, v, max) =>
       `<input class="part" inputmode="numeric" maxlength="2" value="${escapeHtml(v ?? "")}" data-field="${field}"
-        data-part="${name}" data-max="${max}" data-row="${i}" aria-label="${label} ${name === "h" ? "hour" : "minute"}">`;
+        data-part="${name}" data-max="${max}" data-row="${i}" aria-label="${label}: ${name === "h" ? t("hour") : t("minute")}" title="${name === "h" ? t("hour") : t("minute")}">`;
     return `<label class="time"><ha-icon icon="${icon}"></ha-icon>${part("h", h, 23)}<span class="colon">:</span>${part("m", m, 59)}</label>`;
   }
 
@@ -500,7 +625,8 @@ class ScheduleCard extends HTMLElement {
     const draft = {};
     for (const name of DAYS) draft[name] = this._rowsOf(week[name] ?? []);
     const today = this._now.day;
-    this._editor = { day: today, draft, original: JSON.parse(JSON.stringify(draft)), copy: new Set(), copying: false, error: null, saving: false };
+    // The schedule's kind, as drafted: a save once the Nest has changed mode would go to another schedule.
+    this._editor = { mode: state.attributes.mode, day: today, draft, original: JSON.parse(JSON.stringify(draft)), copy: new Set(), copying: false, error: null, saving: false };
     this._renderEditor();
     const dialog = this.shadowRoot.querySelector("dialog");
     if (!dialog.open) dialog.showModal();
@@ -547,18 +673,18 @@ class ScheduleCard extends HTMLElement {
     const tabs = DAYS.map((d, i) => {
       const changed = d in changes ? " changed" : "";
       const selected = i === e.day ? " selected" : "";
-      return `<button class="tab${selected}${changed}" data-action="day" data-day="${i}">
-        <span class="label">${DAY_SHORT[i]}</span><span class="mini">${this._miniHtml(week, i)}</span></button>`;
+      return `<button class="tab${selected}${changed}" data-action="day" data-day="${i}" title="${dayName(i, "long")}">
+        <span class="label">${dayName(i)}</span><span class="mini">${this._miniHtml(week, i)}</span></button>`;
     }).join("");
     const copy = e.copying
       ? `<div class="copy-days">${DAYS.map((d, i) =>
-          i === e.day ? "" : `<button class="chip${e.copy.has(d) ? " selected" : ""}" data-action="copy-day" data-day="${d}">${DAY_SHORT[i]}</button>`,
+          i === e.day ? "" : `<button class="chip${e.copy.has(d) ? " selected" : ""}" data-action="copy-day" data-day="${d}" title="${t("copy_day_hint", { day: dayName(i, "long") })}">${dayName(i)}</button>`,
         ).join("")}</div>`
       : "";
     // A copy that would be refused, by the day it goes to.
     const copied = [...problems]
       .filter(([key]) => e.copy.has(key.split(":")[0]))
-      .flatMap(([key, texts]) => texts.map((t) => `${DAY_LONG[DAYS.indexOf(key.split(":")[0])]}: ${t}`));
+      .flatMap(([key, texts]) => texts.map((text) => `${dayName(DAYS.indexOf(key.split(":")[0]), "long")}: ${text}`));
     const errors = [...new Set([...(problems.get(name) ?? []), ...copied]), ...(e.error ? [e.error] : [])];
     // The time field being typed in, to have it again once redrawn.
     const focused = this.shadowRoot.activeElement?.dataset;
@@ -567,23 +693,23 @@ class ScheduleCard extends HTMLElement {
       <div class="panel" role="document">
         <div class="panel-head">
           <span class="panel-title">${escapeHtml(this._title())}</span>
-          <button class="icon-button" data-action="close" aria-label="Close"><ha-icon icon="mdi:close"></ha-icon></button>
+          <button class="icon-button" data-action="close" aria-label="${t("close")}" title="${t("close_hint")}"><ha-icon icon="mdi:close"></ha-icon></button>
         </div>
         <div class="tabs">${tabs}</div>
-        <div class="day-head"><span class="day-name">${DAY_LONG[e.day]}</span><span class="carry">${this._carryText(week, e.day)}</span></div>
+        <div class="day-head"><span class="day-name">${dayName(e.day, "long")}</span><span class="carry">${this._carryText(week, e.day)}</span></div>
         <div class="bar">${this._dayBarHtml(week, e.day, false)}</div>
         ${this._axis(false)}
         <div class="rows">
           ${rows.map((r, i) => this._rowHtml(r, i, problems.get(`${name}:${i}`))).join("")}
-          <button class="add" data-action="add" ${rows.length >= max ? "disabled" : ""}>
+          <button class="add" data-action="add" title="${rows.length >= max ? t("at_most_a_day", { max }) : this._addLabel}" ${rows.length >= max ? "disabled" : ""}>
             <ha-icon icon="mdi:plus"></ha-icon>${this._addLabel}</button>
         </div>
         ${errors.length ? `<div class="errors">${errors.map(escapeHtml).join("<br>")}</div>` : ""}
         ${copy}
         <div class="actions">
-          <button class="action" data-action="copy"><ha-icon icon="mdi:content-copy"></ha-icon>Copy to…</button>
-          <button class="action primary${this._water ? " water" : ""}" data-action="save"
-            ${!Object.keys(changes).length || problems.size || e.saving ? "disabled" : ""}>${e.saving ? "Saving…" : "Save"}</button>
+          <button class="action" data-action="copy" title="${t("copy_hint")}"><ha-icon icon="mdi:content-copy"></ha-icon>${t("copy")}</button>
+          <button class="action primary${this._water ? " water" : ""}" data-action="save" title="${t("save_hint")}"
+            ${!Object.keys(changes).length || problems.size || e.saving ? "disabled" : ""}>${e.saving ? t("saving") : t("save")}</button>
         </div>
       </div>`;
     if (field) dialog.querySelector(field)?.focus();
@@ -619,7 +745,7 @@ class ScheduleCard extends HTMLElement {
         rows.splice(Number(target.dataset.row), 1);
         break;
       case "step":
-        this._step(rows[Number(target.dataset.row)], Number(target.dataset.by));
+        this._step(rows[Number(target.dataset.row)], Number(target.dataset.by), target.dataset.which);
         break;
       case "copy":
         e.copying = !e.copying;
@@ -659,6 +785,10 @@ class ScheduleCard extends HTMLElement {
     const e = this._editor;
     const days = this._changes();
     if (!Object.keys(days).length) return;
+    if (this._state?.attributes.mode !== e.mode) {
+      e.error = t("mode_changed");
+      return this._renderEditor();
+    }
     e.saving = true;
     e.error = null;
     this._renderEditor();
@@ -667,15 +797,31 @@ class ScheduleCard extends HTMLElement {
       this._close();
     } catch (err) {
       e.saving = false;
-      e.error = err?.message ?? String(err);
+      e.error = await this._message(err);
       this._renderEditor();
     }
+  }
+
+  /** An error from the integration in the user's language, from its translation key. */
+  async _message(err) {
+    if (err?.translation_key && err?.translation_domain && this._hass.loadBackendTranslation) {
+      try {
+        const localize = await this._hass.loadBackendTranslation("exceptions", err.translation_domain);
+        const key = `component.${err.translation_domain}.exceptions.${err.translation_key}.message`;
+        const text = localize(key, err.translation_placeholders ?? {});
+        if (text) return text;
+      } catch {
+        // The English message below.
+      }
+    }
+    return err?.message ?? String(err);
   }
 }
 
 class Unfr0zenHeatingCard extends ScheduleCard {
   static getConfigForm() {
     return {
+      computeLabel: (field) => t(`config_${field.name}`),
       schema: [
         { name: "entity", required: true, selector: { entity: { filter: { domain: "calendar", integration: "unfr0zen" } } } },
         { name: "name", selector: { text: {} } },
@@ -700,12 +846,17 @@ class Unfr0zenHeatingCard extends ScheduleCard {
   }
 
   get _addLabel() {
-    return "Add a change";
+    return t("add_change");
   }
 
-  /** The schedule the Nest runs: its cooling one while it cools. */
+  /** The schedule the Nest runs: its cooling or heat-cool one as its mode is. */
   _title() {
-    return this._config.name ?? (this._state?.attributes.mode === "cool" ? "Cooling" : "Heating");
+    const mode = this._state?.attributes.mode;
+    return this._config.name ?? t(mode === "cool" ? "cooling" : mode === "range" ? "heat_cool" : "heating");
+  }
+
+  get _range() {
+    return this._state?.attributes.mode === "range";
   }
 
   _relatedEntity() {
@@ -724,13 +875,16 @@ class Unfr0zenHeatingCard extends ScheduleCard {
   /** How strongly a setpoint is coloured, 0 to 100: the week's warmest the
    * most when heating, its coolest the most when cooling. */
   _warmth(points) {
-    const temps = points.map((p) => p.temp);
-    const lo = Math.min(...temps);
-    const hi = Math.max(...temps);
+    // A range by its middle.
+    const level = (p) => (p.high === null || p.high === undefined ? p.temp : (p.temp + p.high) / 2);
+    const levels = points.map(level);
+    const lo = Math.min(...levels);
+    const hi = Math.max(...levels);
     const cooling = this._state?.attributes.mode === "cool";
-    return (temp) => {
-      if (hi <= lo) return 70;
-      const share = cooling ? (hi - temp) / (hi - lo) : (temp - lo) / (hi - lo);
+    return (p) => {
+      // Ranges aren't warmer or cooler than each other: one shade.
+      if (this._range || hi <= lo) return 70;
+      const share = cooling ? (hi - level(p)) / (hi - lo) : (level(p) - lo) / (hi - lo);
       return Math.round(Math.pow(share, 1.6) * 100);
     };
   }
@@ -741,10 +895,11 @@ class Unfr0zenHeatingCard extends ScheduleCard {
       .map((s) => {
         const left = (s.start / DAY) * 100;
         const width = ((s.end - s.start) / DAY) * 100;
-        const w = warmth(s.temp);
+        const w = warmth(s);
         const style = `left:${left}%;width:${width}%;background:color-mix(in srgb, var(--u0-warm) ${w}%, var(--u0-cool))`;
-        const cls = `seg${w > 45 ? " warm" : ""}${width < 13 ? " small" : ""}`;
-        const label = labels && width >= 6 ? degrees(s.temp) : "";
+        // Ranges share a shade: a divider marks where one gives way to the next.
+        const cls = `seg${w > 45 ? " warm" : ""}${width < 13 ? " small" : ""}${this._range && s.start > 0 ? " divided" : ""}`;
+        const label = labels && width >= (s.high === null ? 6 : 11) ? temps(s) : "";
         return `<div class="${cls}" style="${style}">${label}</div>`;
       })
       .join("");
@@ -756,19 +911,18 @@ class Unfr0zenHeatingCard extends ScheduleCard {
     const now = this._now;
     const warmth = this._warmth(points);
     const { current, next } = heatingNow(points, now);
-    let subtitle = "No schedule";
+    let subtitle = t("no_schedule");
     if (current) {
-      subtitle = `Set to ${degrees(current.temp)}`;
-      if (next) subtitle += ` · ${degrees(next.temp)} ${when(now, next.day, next.minute, next.ahead)}`;
+      subtitle = t("set_to", { temps: temps(current) });
+      if (next) subtitle += ` · ${t("next_change", { temps: temps(next), when: when(now, next.day, next.minute, next.ahead) })}`;
     }
-    if (state.attributes.mode === "range") subtitle = "Heat-cool schedule";
     const rows = DAYS.map((_, day) => {
       const today = day === now.day;
       const marker = today ? `<div class="now" style="left:${(now.minute / DAY) * 100}%"></div>` : "";
       const bar = points.length
         ? this._segmentsHtml(points, day, true, warmth)
-        : `<span class="empty">No setpoints</span>`;
-      return `<div class="day${today ? " today" : ""}">${DAY_SHORT[day]}</div>
+        : `<span class="empty">${t("no_setpoints")}</span>`;
+      return `<div class="day${today ? " today" : ""}">${dayName(day)}</div>
         <div class="bar${today ? " today" : ""}">${bar}${marker}</div>`;
     }).join("");
     return `
@@ -784,21 +938,27 @@ class Unfr0zenHeatingCard extends ScheduleCard {
 
   _pillHtml(current) {
     const climate = this._relatedEntity() && this._hass.states[this._relatedEntity()];
-    let text = current ? degrees(current.temp) : "–";
+    let text = current ? temps(current) : "–";
+    let action = null;
     if (climate) {
       const a = climate.attributes;
       // The climate entity's own, in Home Assistant's unit.
       if (a.temperature != null) text = shown(Number(a.temperature));
       else if (a.target_temp_low != null && a.target_temp_high != null)
         text = `${shown(Number(a.target_temp_low))}–${shown(Number(a.target_temp_high))}`;
+      // Lit while the thermostat heats or cools.
+      if (a.hvac_action === "heating" || a.hvac_action === "cooling") action = a.hvac_action;
     }
-    return `<span class="pill"><ha-icon icon="mdi:gauge"></ha-icon>${text}</span>`;
+    const hint = t(action ? `target_${action}` : "target");
+    return `<span class="pill${action ? ` ${action}` : ""}" title="${hint}"><ha-icon icon="mdi:gauge"></ha-icon>${text}</span>`;
   }
 
   // --- Editor rows: a time and a temperature ---
 
   _rowsOf(list) {
-    return list.map((p) => ({ time: p.time, temp: Number(p.temp) }));
+    return list.map((p) =>
+      p.high === undefined ? { time: p.time, temp: Number(p.temp) } : { time: p.time, temp: Number(p.low), high: Number(p.high) },
+    );
   }
 
   _sorted(rows) {
@@ -806,7 +966,7 @@ class Unfr0zenHeatingCard extends ScheduleCard {
   }
 
   _payloadOf(row) {
-    return { time: row.time, temp: row.temp };
+    return this._range ? { time: row.time, low: row.temp, high: row.high } : { time: row.time, temp: row.temp };
   }
 
   _draftPoints(draft) {
@@ -824,28 +984,39 @@ class Unfr0zenHeatingCard extends ScheduleCard {
   }
 
   _carryText(draft, day) {
-    const temp = carried(this._draftPoints(draft), day);
-    return temp === null ? "" : `From midnight: ${degrees(temp)}`;
+    const from = carried(this._draftPoints(draft), day);
+    return from === null ? "" : t("from_midnight", { temps: temps(from) });
   }
 
   _rowHtml(row, i, problem) {
-    const { min, max } = this._limits();
-    return `<div class="row${problem ? " invalid" : ""}">
-      ${this._timeHtml("time", row.time, i, "mdi:clock-outline", "Time")}
+    const { min, max, step } = this._limits();
+    // One stepper, or a range's two: the low it heats to, the high it cools to.
+    const stepper = (which, label) => {
+      const value = row[which];
+      return `<span class="stepper">
+        ${label ? `<span class="which">${label}</span>` : ""}
+        <button class="round" data-action="step" data-row="${i}" data-which="${which}" data-by="-1" aria-label="${t("cooler")}" title="${t("cooler_hint", { step })}" ${value <= min ? "disabled" : ""}><ha-icon icon="mdi:minus"></ha-icon></button>
+        <span class="temp">${degrees(value)}</span>
+        <button class="round" data-action="step" data-row="${i}" data-which="${which}" data-by="1" aria-label="${t("warmer")}" title="${t("warmer_hint", { step })}" ${value >= max ? "disabled" : ""}><ha-icon icon="mdi:plus"></ha-icon></button>
+      </span>`;
+    };
+    // A range's two steppers share a line under the time.
+    const steppers = this._range
+      ? `<div class="steppers">${stepper("temp", t("low"))}${stepper("high", t("high"))}</div>`
+      : stepper("temp", "");
+    return `<div class="row${problem ? " invalid" : ""}${this._range ? " range" : ""}">
+      ${this._timeHtml("time", row.time, i, "mdi:clock-outline", t("time"))}
       <span class="grow"></span>
-      <span class="stepper">
-        <button class="round" data-action="step" data-row="${i}" data-by="-1" aria-label="Cooler" ${row.temp <= min ? "disabled" : ""}><ha-icon icon="mdi:minus"></ha-icon></button>
-        <span class="temp">${degrees(row.temp)}</span>
-        <button class="round" data-action="step" data-row="${i}" data-by="1" aria-label="Warmer" ${row.temp >= max ? "disabled" : ""}><ha-icon icon="mdi:plus"></ha-icon></button>
-      </span>
-      <button class="icon-button" data-action="remove" data-row="${i}" aria-label="Remove"><ha-icon icon="mdi:trash-can-outline"></ha-icon></button>
+      ${this._range ? "" : steppers}
+      <button class="icon-button" data-action="remove" data-row="${i}" aria-label="${t("remove")}" title="${t("remove")}"><ha-icon icon="mdi:trash-can-outline"></ha-icon></button>
+      ${this._range ? steppers : ""}
     </div>`;
   }
 
-  _step(row, by) {
+  _step(row, by, which = "temp") {
     const { min, max, step } = this._limits();
-    const next = Math.round((row.temp + by * step) / step) * step;
-    row.temp = Math.min(max, Math.max(min, Number(next.toFixed(1))));
+    const next = Math.round((row[which] + by * step) / step) * step;
+    row[which] = Math.min(max, Math.max(min, Number(next.toFixed(1))));
   }
 
   _newRow(rows) {
@@ -853,6 +1024,9 @@ class Unfr0zenHeatingCard extends ScheduleCard {
     const last = sorted.at(-1);
     const after = last ? Math.min((toMinutes(last.time) ?? 0) + 60, DAY - 1) : 12 * 60;
     const { min, max } = this._limits();
+    if (this._range) {
+      return last ? { time: hhmm(after), temp: last.temp, high: last.high } : { time: hhmm(after), temp: 19, high: 24 };
+    }
     const temp = last ? last.temp : Math.min(max, Math.max(min, 20));
     return { time: hhmm(after), temp };
   }
@@ -865,18 +1039,23 @@ class Unfr0zenHeatingCard extends ScheduleCard {
     const add = (key, text) => problems.set(key, [...(problems.get(key) ?? []), text]);
     for (const name of DAYS) {
       const rows = draft[name];
-      if (rows.length > limit) add(name, `At most ${limit} changes a day.`);
+      if (rows.length > limit) add(name, t("too_many_changes", { max: limit }));
       const seen = new Map();
       rows.forEach((r, i) => {
         const m = toMinutes(r.time);
         if (m === null) {
           add(`${name}:${i}`, "time");
-          add(name, "Each change needs a time.");
+          add(name, t("change_needs_time"));
         } else if (seen.has(m)) {
           add(`${name}:${i}`, "duplicate");
-          add(name, `Two changes at ${r.time}.`);
+          add(name, t("two_changes", { time: r.time }));
         } else seen.set(m, i);
-        if (!(r.temp >= min && r.temp <= max)) add(name, `Temperatures are ${degrees(min)}–${degrees(max)}.`);
+        const values = this._range ? [r.temp, r.high] : [r.temp];
+        if (!values.every((v) => v >= min && v <= max)) add(name, t("temperatures_between", { min: degrees(min), max: degrees(max) }));
+        if (this._range && !(r.high - r.temp >= RANGE_GAP)) {
+          add(`${name}:${i}`, "gap");
+          add(name, t("range_gap", { gap: RANGE_GAP }));
+        }
       });
     }
     return problems;
@@ -886,6 +1065,7 @@ class Unfr0zenHeatingCard extends ScheduleCard {
 class Unfr0zenHotWaterCard extends ScheduleCard {
   static getConfigForm() {
     return {
+      computeLabel: (field) => t(`config_${field.name}`),
       schema: [
         { name: "entity", required: true, selector: { entity: { filter: { domain: "calendar", integration: "unfr0zen" } } } },
         { name: "name", selector: { text: {} } },
@@ -913,7 +1093,7 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
   }
 
   get _addLabel() {
-    return "Add a period";
+    return t("add_period");
   }
 
   get _water() {
@@ -921,7 +1101,7 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
   }
 
   _title() {
-    return this._config.name ?? "Hot water";
+    return this._config.name ?? t("hot_water");
   }
 
   /** The entities beside the calendar: its switch, boost, water heater and "heating now" sensor. */
@@ -956,20 +1136,21 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
     const now = this._now;
     const status = hotWaterNow(spans, now);
     const boost = this._boostState();
-    let subtitle = "No periods";
+    let subtitle = t("no_periods");
     if (spans.length) {
-      const next = status.next ? `next ${when(now, status.next.day, status.next.on, status.next.ahead)}` : "";
-      subtitle = status.on ? `On until ${hhmm(status.until)}${next ? ` · ${next}` : ""}` : `Off${next ? ` · ${next}` : ""}`;
+      const next = status.next ? t("next_period", { when: when(now, status.next.day, status.next.on, status.next.ahead) }) : "";
+      const state = status.on ? t("on_until", { time: hhmm(status.until) }) : t("off");
+      subtitle = next ? `${state} · ${next}` : state;
     }
-    if (boost.active) subtitle = boost.minutes ? `Boosting · ${duration(boost.minutes)}` : "Boosting";
+    if (boost.active) subtitle = boost.minutes ? t("boosting_for", { duration: duration(boost.minutes) }) : t("boosting");
     const active = this._related().active;
     const heating = active && this._hass.states[active]?.state === "on"
-      ? `<div class="heating-now"><ha-icon icon="mdi:fire"></ha-icon>Heating now</div>`
+      ? `<div class="heating-now"><ha-icon icon="mdi:fire"></ha-icon>${t("heating_now")}</div>`
       : "";
     const rows = DAYS.map((_, day) => {
       const today = day === now.day;
       const marker = today ? `<div class="now" style="left:${(now.minute / DAY) * 100}%"></div>` : "";
-      return `<div class="day${today ? " today" : ""}">${DAY_SHORT[day]}</div>
+      return `<div class="day${today ? " today" : ""}">${dayName(day)}</div>
         <div class="bar${today ? " today" : ""}">${this._blocksHtml(spans, day, true)}${marker}</div>`;
     }).join("");
     return `
@@ -989,11 +1170,11 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
     const entity = (sw && this._hass.states[sw]) || (waterHeater && this._hass.states[waterHeater]);
     if (entity) {
       const on = sw && this._hass.states[sw] ? entity.state === "on" : entity.state !== "off";
-      return `<button class="pill${on ? " on" : ""}" data-action="toggle" title="Hot water">
-        <ha-icon icon="mdi:water-boiler"></ha-icon>${on ? "On" : "Off"}</button>`;
+      return `<button class="pill${on ? " on" : ""}" data-action="toggle" title="${t(on ? "turn_off" : "turn_on")}">
+        <ha-icon icon="mdi:water-boiler"></ha-icon>${t(on ? "on" : "off")}</button>`;
     }
     const on = state.state === "on" || status.on;
-    return `<span class="pill${on ? " on" : ""}"><ha-icon icon="mdi:water-boiler"></ha-icon>${on ? "On" : "Off"}</span>`;
+    return `<span class="pill${on ? " on" : ""}" title="${t(on ? "on_now" : "off_now")}"><ha-icon icon="mdi:water-boiler"></ha-icon>${t(on ? "on" : "off")}</span>`;
   }
 
   async _toggle() {
@@ -1024,20 +1205,28 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
 
   _boostHtml(boost) {
     if (!boost.via) return "";
-    const label = boost.active ? `Boost${boost.minutes ? ` · ${duration(boost.minutes)}` : ""}` : "Boost";
+    const label = boost.active && boost.minutes ? t("boost_for", { duration: duration(boost.minutes) }) : t("boost");
     const items =
       boost.via === "select"
-        ? boost.options.map((o) => ({ option: o, text: Number(o) >= 60 ? `${Number(o) / 60} h` : `${o} min` }))
-        : [{ option: "on", text: "Boost now" }];
+        ? boost.options.map((o) => ({
+            option: o,
+            text: Number(o) >= 60 ? t("boost_hours", { n: Number(o) / 60 }) : t("boost_minutes", { n: o }),
+          }))
+        : [{ option: "on", text: t("boost_now") }];
     // Ending a boost is offered only while one runs.
-    if (boost.active) items.push({ option: "off", text: "Off" });
+    if (boost.active) items.push({ option: "off", text: t("off") });
     const menu = this._menu
       ? `<div class="menu" role="menu">${items
-          .map((i) => `<button class="menu-item" data-action="boost" data-option="${escapeHtml(i.option)}">${escapeHtml(i.text)}</button>`)
+          .map((i) => {
+            const hint =
+              i.option === "off" ? t("boost_end") : i.option === "on" ? t("boost_heat") : t("boost_heat_for", { duration: i.text });
+            return `<button class="menu-item" data-action="boost" data-option="${escapeHtml(i.option)}" title="${escapeHtml(hint)}">${escapeHtml(i.text)}</button>`;
+          })
           .join("")}</div>`
       : "";
     return `<span class="boost-wrap"><button class="pill boost${boost.active ? " active" : ""}" data-action="boost-menu"
-      aria-haspopup="menu" aria-expanded="${Boolean(this._menu)}" aria-label="${label}"><ha-icon icon="mdi:rocket-launch-outline"></ha-icon><span class="text">${label}</span></button>${menu}</span>`;
+      aria-haspopup="menu" aria-expanded="${Boolean(this._menu)}" aria-label="${label}"
+      title="${t(boost.active ? "boost_running" : "boost_start")}"><ha-icon icon="mdi:rocket-launch-outline"></ha-icon><span class="text">${label}</span></button>${menu}</span>`;
   }
 
   async _boost(target) {
@@ -1084,16 +1273,16 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
 
   _carryText(draft, day) {
     const spill = hotWaterBlocks(periods(draft), day).find((b) => !b.first && b.start === 0);
-    return spill ? `On from midnight until ${hhmm(spill.end)}` : "";
+    return spill ? t("on_from_midnight", { time: hhmm(spill.end) }) : "";
   }
 
   _rowHtml(row, i, problem) {
     return `<div class="row${problem ? " invalid" : ""}">
-      ${this._timeHtml("on", row.on, i, "mdi:water-boiler", "On")}
+      ${this._timeHtml("on", row.on, i, "mdi:water-boiler", t("on"))}
       <span class="dash">–</span>
-      ${this._timeHtml("off", row.off, i, "mdi:water-boiler-off", "Off")}
+      ${this._timeHtml("off", row.off, i, "mdi:water-boiler-off", t("off"))}
       <span class="grow"></span>
-      <button class="icon-button" data-action="remove" data-row="${i}" aria-label="Remove"><ha-icon icon="mdi:trash-can-outline"></ha-icon></button>
+      <button class="icon-button" data-action="remove" data-row="${i}" aria-label="${t("remove")}" title="${t("remove")}"><ha-icon icon="mdi:trash-can-outline"></ha-icon></button>
     </div>`;
   }
 
@@ -1111,17 +1300,17 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
     const spans = [];
     DAYS.forEach((name, day) => {
       const rows = draft[name];
-      if (rows.length > limit) add(name, `At most ${limit} periods a day.`);
+      if (rows.length > limit) add(name, t("too_many_periods", { max: limit }));
       rows.forEach((r, i) => {
         const on = toMinutes(r.on);
         const off = toMinutes(r.off);
         if (on === null || off === null) {
-          add(name, "Each period needs an on and an off time.");
+          add(name, t("period_needs_times"));
           add(`${name}:${i}`, "time");
           return;
         }
         if (on === off) {
-          add(name, `A period from ${r.on} to itself.`);
+          add(name, t("period_to_itself", { time: r.on }));
           add(`${name}:${i}`, "empty");
           return;
         }
@@ -1136,8 +1325,8 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
       if (spans.length > 1 && s.end > nextStart) {
         add(`${s.name}:${s.i}`, "overlap");
         add(`${next.name}:${next.i}`, "overlap");
-        add(s.name, "Periods overlap.");
-        if (next.name !== s.name) add(next.name, "Periods overlap.");
+        add(s.name, t("periods_overlap"));
+        if (next.name !== s.name) add(next.name, t("periods_overlap"));
       }
     });
     return problems;
@@ -1147,12 +1336,4 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
 customElements.get("unfr0zen-heating-card") || customElements.define("unfr0zen-heating-card", Unfr0zenHeatingCard);
 customElements.get("unfr0zen-hot-water-card") || customElements.define("unfr0zen-hot-water-card", Unfr0zenHotWaterCard);
 
-window.customCards = window.customCards || [];
-for (const card of [
-  { type: "unfr0zen-heating-card", name: "unfr0zen heating", description: "A Nest's heating schedule: the week, and editing it a day at a time." },
-  { type: "unfr0zen-hot-water-card", name: "unfr0zen hot water", description: "A Nest's hot water schedule: the on periods, and editing them." },
-]) {
-  if (!window.customCards.some((c) => c.type === card.type)) {
-    window.customCards.push({ ...card, preview: true, documentationURL: DOCS });
-  }
-}
+pickerEntries();

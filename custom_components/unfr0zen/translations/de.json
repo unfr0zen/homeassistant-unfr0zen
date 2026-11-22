@@ -1,0 +1,247 @@
+{
+  "config": {
+    "flow_title": "{base}",
+    "step": {
+      "user": {
+        "title": "Wie Home Assistant den Nest erreicht",
+        "menu_options": {
+          "nestlocal": "MQTT",
+          "zigbee2mqtt": "Zigbee2MQTT",
+          "zha": "ZHA",
+          "matter": "Matter"
+        }
+      },
+      "confirm": {
+        "description": "Den Zeitplan hinzufügen, den nestlocal auf {base} veröffentlicht?"
+      },
+      "nestlocal": {
+        "data": {
+          "base": "Topic"
+        },
+        "data_description": {
+          "base": "Präfix von nestlocal und Seriennummer des Geräts, z. B. nestlocal/02AA01AC123456AB"
+        }
+      },
+      "zigbee2mqtt": {
+        "data": {
+          "base": "Zigbee2MQTT-Basis-Topic"
+        }
+      },
+      "zigbee2mqtt_device": {
+        "data": {
+          "friendly_name": "Thermostat"
+        }
+      },
+      "zha": {
+        "data": {
+          "device_id": "Thermostat"
+        }
+      },
+      "matter": {
+        "data": {
+          "device_id": "Thermostat"
+        }
+      }
+    },
+    "error": {
+      "no_schedule": "Keine heating_times auf diesem Topic: Präfix und Seriennummer prüfen",
+      "no_device": "Zigbee2MQTT führt unter diesem Basis-Topic keinen unfr0zen-Nest"
+    },
+    "abort": {
+      "already_configured": "Der Zeitplan dieses Nest ist bereits hinzugefügt",
+      "mqtt_not_ready": "MQTT ist in Home Assistant nicht eingerichtet",
+      "no_device": "Kein unfr0zen-Nest in dieser Integration",
+      "not_a_schedule": "Dieses Topic enthält keinen Zeitplan"
+    }
+  },
+  "entity": {
+    "calendar": {
+      "schedule": {
+        "name": "Heizplan"
+      },
+      "hot_water": {
+        "name": "Warmwasserplan"
+      }
+    }
+  },
+  "services": {
+    "set_schedule": {
+      "name": "Zeitplan festlegen",
+      "description": "Ersetzt die genannten Tage im Heizplan des Nest, jeden Tag vollständig.",
+      "fields": {
+        "days": {
+          "name": "Tage",
+          "description": "Je Tag (mon bis sun) eine Liste von Sollwerten, jeder mit Uhrzeit (HH:MM) und Temperatur in °C. Nicht genannte Tage behalten ihre."
+        }
+      }
+    },
+    "set_hot_water_schedule": {
+      "name": "Warmwasserplan festlegen",
+      "description": "Ersetzt die genannten Tage im Warmwasserplan des Nest, jeden Tag vollständig.",
+      "fields": {
+        "days": {
+          "name": "Tage",
+          "description": "Je Tag (mon bis sun) eine Liste von Einschaltzeiträumen, jeder mit Ein- und Ausschaltzeit (HH:MM); liegt Aus vor Ein, läuft der Zeitraum über Mitternacht. Nicht genannte Tage behalten ihre."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "hot_water_calendar": {
+      "message": "{entity_id} ist ein Warmwasserkalender: unfr0zen.set_hot_water_schedule verwenden"
+    },
+    "heating_calendar": {
+      "message": "{entity_id} ist ein Heizkalender: unfr0zen.set_schedule verwenden"
+    },
+    "not_writable": {
+      "message": "Dieser Nest-Zeitplan ({mode}) kann nicht über Home Assistant geändert werden"
+    },
+    "mqtt_nothing": {
+      "message": "Nichts auf {topic}"
+    },
+    "mqtt_not_taken_schedule": {
+      "message": "Der Nest hat den Zeitplan nicht übernommen: siehe Log von nestlocal"
+    },
+    "mqtt_not_taken_hot_water": {
+      "message": "Der Nest hat den Warmwasserplan nicht übernommen: siehe Log von nestlocal"
+    },
+    "z2m_nothing": {
+      "message": "Zigbee2MQTT hat kein {key} für {topic} gesendet"
+    },
+    "z2m_not_taken_schedule": {
+      "message": "Der Nest hat den Zeitplan über Zigbee2MQTT nicht übernommen"
+    },
+    "z2m_not_taken_hot_water": {
+      "message": "Der Nest hat den Warmwasserplan über Zigbee2MQTT nicht übernommen"
+    },
+    "too_many_periods": {
+      "message": "Der Nest nimmt höchstens {max} Warmwasserzeiträume pro Tag an"
+    },
+    "periods_overlap": {
+      "message": "Warmwasserzeiträume überschneiden sich am {day} um {time}"
+    },
+    "period_times": {
+      "message": "{day}: Ein und Aus müssen HH:MM sein, nicht {entry}"
+    },
+    "period_empty": {
+      "message": "{day} {time}: ein Zeitraum endet nach seinem Beginn"
+    },
+    "no_period": {
+      "message": "Kein Warmwasserzeitraum {uid} im Zeitplan"
+    },
+    "period_whole_days": {
+      "message": "Ein Warmwasserzeitraum braucht Start- und Endzeiten, keine ganzen Tage"
+    },
+    "period_whole_minutes": {
+      "message": "Ein Warmwasserzeitraum beginnt und endet zu vollen Minuten"
+    },
+    "period_order": {
+      "message": "Ein Warmwasserzeitraum endet nach seinem Beginn, innerhalb eines Tages"
+    },
+    "matter_no_node": {
+      "message": "Matter hat keinen Knoten für Gerät {device}: {error}"
+    },
+    "changed_while_editing_schedule": {
+      "message": "Der Zeitplan des Nest hat sich während der Bearbeitung geändert: erneut versuchen"
+    },
+    "changed_while_editing_hot_water": {
+      "message": "Der Warmwasserplan des Nest hat sich während der Bearbeitung geändert: erneut versuchen"
+    },
+    "matter_not_taken_schedule": {
+      "message": "Der Nest hat den Zeitplan nicht übernommen"
+    },
+    "matter_not_taken_hot_water": {
+      "message": "Der Nest hat den Warmwasserplan nicht übernommen"
+    },
+    "matter_no_water_heater": {
+      "message": "Matter-Gerät {device} hat keinen Warmwasserbereiter"
+    },
+    "matter_no_endpoint": {
+      "message": "Der Matter-Server hat keinen Endpunkt {endpoint} des Nest: Gerät erneut abfragen"
+    },
+    "nestlocal_too_old": {
+      "message": "nestlocal ist zu alt für den Matter-Zeitplan: aktualisieren"
+    },
+    "matter_failed": {
+      "message": "Matter: {error}"
+    },
+    "begin_no_answer": {
+      "message": "Der Nest hat die Anfrage, das Schreiben des Zeitplans zu beginnen, nicht beantwortet"
+    },
+    "begin_refused": {
+      "message": "Der Nest hat den Beginn des Schreibens des Zeitplans abgelehnt: {status}"
+    },
+    "commit_no_answer": {
+      "message": "Der Nest hat die Anfrage, den Zeitplan zu übernehmen, nicht beantwortet"
+    },
+    "commit_refused": {
+      "message": "Der Nest hat die Übernahme des Zeitplans abgelehnt: {status}"
+    },
+    "temp_outside": {
+      "message": "{temp} °C liegt außerhalb von {min}-{max} °C"
+    },
+    "range_gap": {
+      "message": "{low}-{high} °C: der obere Wert muss mindestens {gap} °C über dem unteren liegen"
+    },
+    "days_object": {
+      "message": "days muss ein Objekt sein, z. B. {example}"
+    },
+    "unknown_day": {
+      "message": "Unbekannter Tag {day}: {days} verwenden"
+    },
+    "day_list": {
+      "message": "{day} muss eine Liste sein, z. B. {example}"
+    },
+    "not_a_number": {
+      "message": "{day} {time}: {field} {value} ist keine Zahl"
+    },
+    "bad_time": {
+      "message": "{day}: Uhrzeit {value} ist nicht HH:MM"
+    },
+    "two_setpoints": {
+      "message": "{day}: zwei Sollwerte um {time}"
+    },
+    "too_many_setpoints": {
+      "message": "Der Nest nimmt höchstens {max} Sollwerte pro Tag an"
+    },
+    "no_setpoint": {
+      "message": "Kein Sollwert {uid} im Zeitplan"
+    },
+    "setpoint_whole_day": {
+      "message": "Ein Sollwert braucht eine Startzeit, keinen ganzen Tag"
+    },
+    "setpoint_whole_minute": {
+      "message": "Ein Sollwert beginnt zu einer vollen Minute"
+    },
+    "title_range": {
+      "message": "Den Termin nach unterem und oberem Wert benennen, z. B. 19-24 °C"
+    },
+    "title_temp": {
+      "message": "Den Termin nach seiner Temperatur benennen, z. B. 20,5 °C"
+    },
+    "weekly_only": {
+      "message": "Der Zeitplan des Nest wiederholt sich jede Woche: den Termin wöchentlich wiederholen lassen, ohne Ende"
+    },
+    "unknown_repeat_day": {
+      "message": "Unbekannter Tag {day} in der Wiederholung des Termins"
+    },
+    "zha_no_cluster": {
+      "message": "ZHA hat keinen Cluster {cluster} für {ieee}: {error}"
+    },
+    "zha_get_refused": {
+      "message": "Der Nest hat Get Weekly Schedule abgelehnt: {response}"
+    },
+    "zha_set_refused": {
+      "message": "Der Nest hat Set Weekly Schedule abgelehnt: {status}"
+    },
+    "zha_hot_water_read": {
+      "message": "Der Nest hat sein Warmwasser für Tag {day} nicht gelesen: {response}"
+    },
+    "zha_hot_water_refused": {
+      "message": "Der Nest hat die Warmwasserzeiträume {periods} abgelehnt: {status}"
+    },
+    "zha_mixed_week": {
+      "message": "Der Zeitplan des Nest hat sich beim Lesen geändert: versuche es erneut"
+    }
+  }
+}

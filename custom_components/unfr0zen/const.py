@@ -24,4 +24,6 @@ ZIGBEE_MATTER_LIMITS = (9.0, 32.0)
 TEMP_STEP = 0.5
 
 # What the cards load, served from the integration.
-CARDS_URL = "/unfr0zen/unfr0zen-cards.js"
+# The cards and their locales, served from frontend/.
+FRONTEND_URL = "/unfr0zen"
+CARDS_URL = f"{FRONTEND_URL}/unfr0zen-cards.js"

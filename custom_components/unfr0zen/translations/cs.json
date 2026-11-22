@@ -1,0 +1,247 @@
+{
+  "config": {
+    "flow_title": "{base}",
+    "step": {
+      "user": {
+        "title": "Jak se Home Assistant připojí k termostatu Nest",
+        "menu_options": {
+          "nestlocal": "MQTT",
+          "zigbee2mqtt": "Zigbee2MQTT",
+          "zha": "ZHA",
+          "matter": "Matter"
+        }
+      },
+      "confirm": {
+        "description": "Přidat plán, který nestlocal publikuje v {base}?"
+      },
+      "nestlocal": {
+        "data": {
+          "base": "Téma"
+        },
+        "data_description": {
+          "base": "Prefix nestlocal a sériové číslo jednotky, např. nestlocal/02AA01AC123456AB"
+        }
+      },
+      "zigbee2mqtt": {
+        "data": {
+          "base": "Základní téma Zigbee2MQTT"
+        }
+      },
+      "zigbee2mqtt_device": {
+        "data": {
+          "friendly_name": "Termostat"
+        }
+      },
+      "zha": {
+        "data": {
+          "device_id": "Termostat"
+        }
+      },
+      "matter": {
+        "data": {
+          "device_id": "Termostat"
+        }
+      }
+    },
+    "error": {
+      "no_schedule": "V tomto tématu není heating_times: zkontrolujte prefix a sériové číslo",
+      "no_device": "Zigbee2MQTT v tomto základním tématu neuvádí žádný Nest s unfr0zen"
+    },
+    "abort": {
+      "already_configured": "Plán tohoto termostatu Nest je již přidán",
+      "mqtt_not_ready": "MQTT není v Home Assistant nastaveno",
+      "no_device": "V této integraci není žádný Nest s unfr0zen",
+      "not_a_schedule": "Toto téma neobsahuje žádný plán"
+    }
+  },
+  "entity": {
+    "calendar": {
+      "schedule": {
+        "name": "Plán topení"
+      },
+      "hot_water": {
+        "name": "Plán teplé vody"
+      }
+    }
+  },
+  "services": {
+    "set_schedule": {
+      "name": "Nastavit plán",
+      "description": "Nahradí uvedené dny plánu topení termostatu Nest, každý den celý.",
+      "fields": {
+        "days": {
+          "name": "Dny",
+          "description": "Pro každý den (mon až sun) seznam žádaných hodnot, každá s časem (HH:MM) a teplotou v °C. Neuvedené dny si ponechají své."
+        }
+      }
+    },
+    "set_hot_water_schedule": {
+      "name": "Nastavit plán teplé vody",
+      "description": "Nahradí uvedené dny plánu teplé vody termostatu Nest, každý den celý.",
+      "fields": {
+        "days": {
+          "name": "Dny",
+          "description": "Pro každý den (mon až sun) seznam období zapnutí, každé s časem zapnutí a vypnutí (HH:MM); vypnutí před zapnutím pokračuje přes půlnoc. Neuvedené dny si ponechají své."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "hot_water_calendar": {
+      "message": "{entity_id} je kalendář teplé vody: použijte unfr0zen.set_hot_water_schedule"
+    },
+    "heating_calendar": {
+      "message": "{entity_id} je kalendář topení: použijte unfr0zen.set_schedule"
+    },
+    "not_writable": {
+      "message": "Tento plán Nest ({mode}) nelze z Home Assistant změnit"
+    },
+    "mqtt_nothing": {
+      "message": "V {topic} nic není"
+    },
+    "mqtt_not_taken_schedule": {
+      "message": "Nest plán nepřijal: viz protokol nestlocal"
+    },
+    "mqtt_not_taken_hot_water": {
+      "message": "Nest plán teplé vody nepřijal: viz protokol nestlocal"
+    },
+    "z2m_nothing": {
+      "message": "Zigbee2MQTT neposlal {key} pro {topic}"
+    },
+    "z2m_not_taken_schedule": {
+      "message": "Nest plán přes Zigbee2MQTT nepřijal"
+    },
+    "z2m_not_taken_hot_water": {
+      "message": "Nest plán teplé vody přes Zigbee2MQTT nepřijal"
+    },
+    "too_many_periods": {
+      "message": "Nest přijme nejvýše {max} období teplé vody denně"
+    },
+    "periods_overlap": {
+      "message": "{day} v {time}: období teplé vody se překrývají"
+    },
+    "period_times": {
+      "message": "{day}: zapnutí a vypnutí musí být HH:MM, ne {entry}"
+    },
+    "period_empty": {
+      "message": "{day} {time}: období se vypne až po zapnutí"
+    },
+    "no_period": {
+      "message": "Období teplé vody {uid} v plánu není"
+    },
+    "period_whole_days": {
+      "message": "Období teplé vody potřebuje čas začátku a konce, ne celé dny"
+    },
+    "period_whole_minutes": {
+      "message": "Období teplé vody začíná a končí na celé minuty"
+    },
+    "period_order": {
+      "message": "Období teplé vody končí po svém začátku, v rámci jednoho dne"
+    },
+    "matter_no_node": {
+      "message": "Matter nemá uzel pro zařízení {device}: {error}"
+    },
+    "changed_while_editing_schedule": {
+      "message": "Plán termostatu Nest se během úprav změnil: zkuste to znovu"
+    },
+    "changed_while_editing_hot_water": {
+      "message": "Plán teplé vody termostatu Nest se během úprav změnil: zkuste to znovu"
+    },
+    "matter_not_taken_schedule": {
+      "message": "Nest plán nepřijal"
+    },
+    "matter_not_taken_hot_water": {
+      "message": "Nest plán teplé vody nepřijal"
+    },
+    "matter_no_water_heater": {
+      "message": "Zařízení Matter {device} nemá ohřívač vody"
+    },
+    "matter_no_endpoint": {
+      "message": "Server Matter nemá koncový bod {endpoint} termostatu Nest: proveďte znovu interview zařízení"
+    },
+    "nestlocal_too_old": {
+      "message": "nestlocal je pro plán Matter příliš starý: aktualizujte ho"
+    },
+    "matter_failed": {
+      "message": "Matter: {error}"
+    },
+    "begin_no_answer": {
+      "message": "Nest neodpověděl na požadavek na zahájení zápisu plánu"
+    },
+    "begin_refused": {
+      "message": "Nest odmítl zahájit zápis plánu: {status}"
+    },
+    "commit_no_answer": {
+      "message": "Nest neodpověděl na požadavek na potvrzení plánu"
+    },
+    "commit_refused": {
+      "message": "Nest odmítl potvrdit plán: {status}"
+    },
+    "temp_outside": {
+      "message": "{temp} °C je mimo rozsah {min}-{max} °C"
+    },
+    "range_gap": {
+      "message": "{low}-{high} °C: horní hodnota musí být alespoň o {gap} °C vyšší než dolní"
+    },
+    "days_object": {
+      "message": "days musí být objekt, např. {example}"
+    },
+    "unknown_day": {
+      "message": "Neznámý den {day}: použijte {days}"
+    },
+    "day_list": {
+      "message": "{day} musí být seznam, např. {example}"
+    },
+    "not_a_number": {
+      "message": "{day} {time}: {field} {value} není číslo"
+    },
+    "bad_time": {
+      "message": "{day}: čas {value} není ve formátu HH:MM"
+    },
+    "two_setpoints": {
+      "message": "{day}: dvě žádané hodnoty v {time}"
+    },
+    "too_many_setpoints": {
+      "message": "Nest přijme nejvýše {max} žádaných hodnot denně"
+    },
+    "no_setpoint": {
+      "message": "Žádaná hodnota {uid} v plánu není"
+    },
+    "setpoint_whole_day": {
+      "message": "Žádaná hodnota potřebuje čas začátku, ne celý den"
+    },
+    "setpoint_whole_minute": {
+      "message": "Žádaná hodnota začíná na celou minutu"
+    },
+    "title_range": {
+      "message": "Pojmenujte událost podle její dolní a horní hodnoty, např. 19-24 °C"
+    },
+    "title_temp": {
+      "message": "Pojmenujte událost podle její teploty, např. 20.5 °C"
+    },
+    "weekly_only": {
+      "message": "Plán termostatu Nest se opakuje každý týden: nastavte opakování události každý týden, bez konce"
+    },
+    "unknown_repeat_day": {
+      "message": "Neznámý den {day} v opakování události"
+    },
+    "zha_no_cluster": {
+      "message": "ZHA nemá cluster {cluster} pro {ieee}: {error}"
+    },
+    "zha_get_refused": {
+      "message": "Nest odmítl Get Weekly Schedule: {response}"
+    },
+    "zha_set_refused": {
+      "message": "Nest odmítl Set Weekly Schedule: {status}"
+    },
+    "zha_hot_water_read": {
+      "message": "Nest nenačetl teplou vodu pro den {day}: {response}"
+    },
+    "zha_hot_water_refused": {
+      "message": "Nest odmítl období teplé vody {periods}: {status}"
+    },
+    "zha_mixed_week": {
+      "message": "Rozvrh Nestu se během čtení změnil: zkuste to znovu"
+    }
+  }
+}

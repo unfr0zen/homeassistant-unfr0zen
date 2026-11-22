@@ -1,0 +1,247 @@
+{
+  "config": {
+    "flow_title": "{base}",
+    "step": {
+      "user": {
+        "title": "Home Assistant 如何连接 Nest",
+        "menu_options": {
+          "nestlocal": "MQTT",
+          "zigbee2mqtt": "Zigbee2MQTT",
+          "zha": "ZHA",
+          "matter": "Matter"
+        }
+      },
+      "confirm": {
+        "description": "添加 nestlocal 在 {base} 上发布的计划？"
+      },
+      "nestlocal": {
+        "data": {
+          "base": "主题"
+        },
+        "data_description": {
+          "base": "nestlocal 的前缀加上设备序列号，例如 nestlocal/02AA01AC123456AB"
+        }
+      },
+      "zigbee2mqtt": {
+        "data": {
+          "base": "Zigbee2MQTT 基础主题"
+        }
+      },
+      "zigbee2mqtt_device": {
+        "data": {
+          "friendly_name": "恒温器"
+        }
+      },
+      "zha": {
+        "data": {
+          "device_id": "恒温器"
+        }
+      },
+      "matter": {
+        "data": {
+          "device_id": "恒温器"
+        }
+      }
+    },
+    "error": {
+      "no_schedule": "该主题上没有 heating_times：请检查前缀和序列号",
+      "no_device": "Zigbee2MQTT 在该基础主题下未列出 unfr0zen Nest"
+    },
+    "abort": {
+      "already_configured": "此 Nest 的计划已添加",
+      "mqtt_not_ready": "Home Assistant 中尚未设置 MQTT",
+      "no_device": "该集成中没有 unfr0zen Nest",
+      "not_a_schedule": "该主题不包含计划"
+    }
+  },
+  "entity": {
+    "calendar": {
+      "schedule": {
+        "name": "制热计划"
+      },
+      "hot_water": {
+        "name": "热水计划"
+      }
+    }
+  },
+  "services": {
+    "set_schedule": {
+      "name": "设置计划",
+      "description": "替换 Nest 制热计划中指定的日期，每天整体替换。",
+      "fields": {
+        "days": {
+          "name": "日期",
+          "description": "按日（mon 至 sun）列出设定点，每个设定点包含一个时间（HH:MM）和一个以 °C 为单位的温度。未指定的日期保持不变。"
+        }
+      }
+    },
+    "set_hot_water_schedule": {
+      "name": "设置热水计划",
+      "description": "替换 Nest 热水计划中指定的日期，每天整体替换。",
+      "fields": {
+        "days": {
+          "name": "日期",
+          "description": "按日（mon 至 sun）列出开启时段，每个时段包含开启和关闭时间（HH:MM）；关闭时间早于开启时间的时段跨越午夜。未指定的日期保持不变。"
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "hot_water_calendar": {
+      "message": "{entity_id} 是热水日历：请使用 unfr0zen.set_hot_water_schedule"
+    },
+    "heating_calendar": {
+      "message": "{entity_id} 是制热日历：请使用 unfr0zen.set_schedule"
+    },
+    "not_writable": {
+      "message": "此 Nest 计划（{mode}）无法从 Home Assistant 更改"
+    },
+    "mqtt_nothing": {
+      "message": "{topic} 上没有内容"
+    },
+    "mqtt_not_taken_schedule": {
+      "message": "Nest 未接受该计划：请查看 nestlocal 的日志"
+    },
+    "mqtt_not_taken_hot_water": {
+      "message": "Nest 未接受热水计划：请查看 nestlocal 的日志"
+    },
+    "z2m_nothing": {
+      "message": "Zigbee2MQTT 未发送 {topic} 的 {key}"
+    },
+    "z2m_not_taken_schedule": {
+      "message": "Nest 未通过 Zigbee2MQTT 接受该计划"
+    },
+    "z2m_not_taken_hot_water": {
+      "message": "Nest 未通过 Zigbee2MQTT 接受热水计划"
+    },
+    "too_many_periods": {
+      "message": "Nest 每天最多接受 {max} 个热水时段"
+    },
+    "periods_overlap": {
+      "message": "热水时段在 {day} {time} 重叠"
+    },
+    "period_times": {
+      "message": "{day}：开启和关闭时间必须为 HH:MM，而不是 {entry}"
+    },
+    "period_empty": {
+      "message": "{day} {time}：时段须在开启之后关闭"
+    },
+    "no_period": {
+      "message": "计划中没有热水时段 {uid}"
+    },
+    "period_whole_days": {
+      "message": "热水时段需要开始和结束时间，而不是全天"
+    },
+    "period_whole_minutes": {
+      "message": "热水时段的开始和结束须为整分钟"
+    },
+    "period_order": {
+      "message": "热水时段须在开始之后、同一天内结束"
+    },
+    "matter_no_node": {
+      "message": "Matter 没有设备 {device} 的节点：{error}"
+    },
+    "changed_while_editing_schedule": {
+      "message": "Nest 的计划在编辑期间已更改：请重试"
+    },
+    "changed_while_editing_hot_water": {
+      "message": "Nest 的热水计划在编辑期间已更改：请重试"
+    },
+    "matter_not_taken_schedule": {
+      "message": "Nest 未接受该计划"
+    },
+    "matter_not_taken_hot_water": {
+      "message": "Nest 未接受热水计划"
+    },
+    "matter_no_water_heater": {
+      "message": "Matter 设备 {device} 没有热水器"
+    },
+    "matter_no_endpoint": {
+      "message": "Matter 服务器没有 Nest 的端点 {endpoint}：请重新访谈该设备"
+    },
+    "nestlocal_too_old": {
+      "message": "nestlocal 版本过旧，不支持 Matter 计划：请更新"
+    },
+    "matter_failed": {
+      "message": "Matter：{error}"
+    },
+    "begin_no_answer": {
+      "message": "Nest 未响应开始写入计划的请求"
+    },
+    "begin_refused": {
+      "message": "Nest 拒绝开始写入计划：{status}"
+    },
+    "commit_no_answer": {
+      "message": "Nest 未响应提交计划的请求"
+    },
+    "commit_refused": {
+      "message": "Nest 拒绝提交计划：{status}"
+    },
+    "temp_outside": {
+      "message": "{temp} °C 超出 {min}-{max} °C 范围"
+    },
+    "range_gap": {
+      "message": "{low}-{high} °C：高值必须比低值高 {gap} °C 或以上"
+    },
+    "days_object": {
+      "message": "days 必须是对象，例如 {example}"
+    },
+    "unknown_day": {
+      "message": "未知日期 {day}：请使用 {days}"
+    },
+    "day_list": {
+      "message": "{day} 必须是列表，例如 {example}"
+    },
+    "not_a_number": {
+      "message": "{day} {time}：{field} {value} 不是数字"
+    },
+    "bad_time": {
+      "message": "{day}：时间 {value} 不是 HH:MM"
+    },
+    "two_setpoints": {
+      "message": "{day}：{time} 有两个设定点"
+    },
+    "too_many_setpoints": {
+      "message": "Nest 每天最多接受 {max} 个设定点"
+    },
+    "no_setpoint": {
+      "message": "计划中没有设定点 {uid}"
+    },
+    "setpoint_whole_day": {
+      "message": "设定点需要开始时间，而不是全天"
+    },
+    "setpoint_whole_minute": {
+      "message": "设定点须从整分钟开始"
+    },
+    "title_range": {
+      "message": "以低值和高值命名事件，例如 19-24 °C"
+    },
+    "title_temp": {
+      "message": "以温度命名事件，例如 20.5 °C"
+    },
+    "weekly_only": {
+      "message": "Nest 的计划每周重复：请将事件设为每周重复，且不设结束"
+    },
+    "unknown_repeat_day": {
+      "message": "事件的重复规则中有未知日期 {day}"
+    },
+    "zha_no_cluster": {
+      "message": "ZHA 没有 {ieee} 的集群 {cluster}：{error}"
+    },
+    "zha_get_refused": {
+      "message": "Nest 拒绝了 Get Weekly Schedule：{response}"
+    },
+    "zha_set_refused": {
+      "message": "Nest 拒绝了 Set Weekly Schedule：{status}"
+    },
+    "zha_hot_water_read": {
+      "message": "Nest 未读取日期 {day} 的热水：{response}"
+    },
+    "zha_hot_water_refused": {
+      "message": "Nest 拒绝了热水时段 {periods}：{status}"
+    },
+    "zha_mixed_week": {
+      "message": "读取时 Nest 的计划发生了变化：请重试"
+    }
+  }
+}

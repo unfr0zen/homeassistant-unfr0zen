@@ -1,0 +1,247 @@
+{
+  "config": {
+    "flow_title": "{base}",
+    "step": {
+      "user": {
+        "title": "Sådan når Home Assistant Nest-termostaten",
+        "menu_options": {
+          "nestlocal": "MQTT",
+          "zigbee2mqtt": "Zigbee2MQTT",
+          "zha": "ZHA",
+          "matter": "Matter"
+        }
+      },
+      "confirm": {
+        "description": "Tilføj den tidsplan, som nestlocal udgiver på {base}?"
+      },
+      "nestlocal": {
+        "data": {
+          "base": "Emne"
+        },
+        "data_description": {
+          "base": "nestlocals præfiks og enhedens serienummer, f.eks. nestlocal/02AA01AC123456AB"
+        }
+      },
+      "zigbee2mqtt": {
+        "data": {
+          "base": "Zigbee2MQTT-basisemne"
+        }
+      },
+      "zigbee2mqtt_device": {
+        "data": {
+          "friendly_name": "Termostat"
+        }
+      },
+      "zha": {
+        "data": {
+          "device_id": "Termostat"
+        }
+      },
+      "matter": {
+        "data": {
+          "device_id": "Termostat"
+        }
+      }
+    },
+    "error": {
+      "no_schedule": "Ingen heating_times på det emne: tjek præfiks og serienummer",
+      "no_device": "Zigbee2MQTT viser ingen unfr0zen Nest under det basisemne"
+    },
+    "abort": {
+      "already_configured": "Denne Nests tidsplan er allerede tilføjet",
+      "mqtt_not_ready": "MQTT er ikke sat op i Home Assistant",
+      "no_device": "Ingen unfr0zen Nest i den integration",
+      "not_a_schedule": "Det emne indeholder ingen tidsplan"
+    }
+  },
+  "entity": {
+    "calendar": {
+      "schedule": {
+        "name": "Opvarmningstidsplan"
+      },
+      "hot_water": {
+        "name": "Varmtvandstidsplan"
+      }
+    }
+  },
+  "services": {
+    "set_schedule": {
+      "name": "Indstil tidsplan",
+      "description": "Erstatter de angivne dage i Nests opvarmningstidsplan, hver dag i sin helhed.",
+      "fields": {
+        "days": {
+          "name": "Dage",
+          "description": "Pr. dag (mon til sun) en liste af setpunkter, hver med et tidspunkt (HH:MM) og en temperatur i °C. Dage, der ikke er nævnt, beholder deres."
+        }
+      }
+    },
+    "set_hot_water_schedule": {
+      "name": "Indstil varmtvandstidsplan",
+      "description": "Erstatter de angivne dage i Nests varmtvandstidsplan, hver dag i sin helhed.",
+      "fields": {
+        "days": {
+          "name": "Dage",
+          "description": "Pr. dag (mon til sun) en liste af perioder, hver med et tænd- og et sluktidspunkt (HH:MM); et sluk før sit tænd løber forbi midnat. Dage, der ikke er nævnt, beholder deres."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "hot_water_calendar": {
+      "message": "{entity_id} er en varmtvandskalender: brug unfr0zen.set_hot_water_schedule"
+    },
+    "heating_calendar": {
+      "message": "{entity_id} er en opvarmningskalender: brug unfr0zen.set_schedule"
+    },
+    "not_writable": {
+      "message": "Denne Nest-tidsplan ({mode}) kan ikke ændres fra Home Assistant"
+    },
+    "mqtt_nothing": {
+      "message": "Intet på {topic}"
+    },
+    "mqtt_not_taken_schedule": {
+      "message": "Nest modtog ikke tidsplanen: se nestlocals log"
+    },
+    "mqtt_not_taken_hot_water": {
+      "message": "Nest modtog ikke varmtvandstidsplanen: se nestlocals log"
+    },
+    "z2m_nothing": {
+      "message": "Zigbee2MQTT sendte ingen {key} for {topic}"
+    },
+    "z2m_not_taken_schedule": {
+      "message": "Nest modtog ikke tidsplanen via Zigbee2MQTT"
+    },
+    "z2m_not_taken_hot_water": {
+      "message": "Nest modtog ikke varmtvandstidsplanen via Zigbee2MQTT"
+    },
+    "too_many_periods": {
+      "message": "Nest tager højst {max} varmtvandsperioder pr. dag"
+    },
+    "periods_overlap": {
+      "message": "Varmtvandsperioder overlapper {day} kl. {time}"
+    },
+    "period_times": {
+      "message": "{day}: tænd og sluk skal være HH:MM, ikke {entry}"
+    },
+    "period_empty": {
+      "message": "{day} {time}: en periode slukker, efter den tænder"
+    },
+    "no_period": {
+      "message": "Ingen varmtvandsperiode {uid} i tidsplanen"
+    },
+    "period_whole_days": {
+      "message": "En varmtvandsperiode skal have start- og sluttidspunkt, ikke hele dage"
+    },
+    "period_whole_minutes": {
+      "message": "En varmtvandsperiode starter og slutter på hele minutter"
+    },
+    "period_order": {
+      "message": "En varmtvandsperiode slutter, efter den starter, inden for samme dag"
+    },
+    "matter_no_node": {
+      "message": "Matter har ingen node for enheden {device}: {error}"
+    },
+    "changed_while_editing_schedule": {
+      "message": "Nests tidsplan blev ændret under redigeringen: prøv igen"
+    },
+    "changed_while_editing_hot_water": {
+      "message": "Nests varmtvandstidsplan blev ændret under redigeringen: prøv igen"
+    },
+    "matter_not_taken_schedule": {
+      "message": "Nest modtog ikke tidsplanen"
+    },
+    "matter_not_taken_hot_water": {
+      "message": "Nest modtog ikke varmtvandstidsplanen"
+    },
+    "matter_no_water_heater": {
+      "message": "Matter-enheden {device} har ingen vandvarmer"
+    },
+    "matter_no_endpoint": {
+      "message": "Matter-serveren har intet endepunkt {endpoint} for Nest: interview den igen"
+    },
+    "nestlocal_too_old": {
+      "message": "nestlocal er for gammel til Matter-tidsplanen: opdater den"
+    },
+    "matter_failed": {
+      "message": "Matter: {error}"
+    },
+    "begin_no_answer": {
+      "message": "Nest svarede ikke på anmodningen om at begynde skrivningen af tidsplanen"
+    },
+    "begin_refused": {
+      "message": "Nest afviste at begynde skrivningen af tidsplanen: {status}"
+    },
+    "commit_no_answer": {
+      "message": "Nest svarede ikke på anmodningen om at gemme tidsplanen"
+    },
+    "commit_refused": {
+      "message": "Nest afviste at gemme tidsplanen: {status}"
+    },
+    "temp_outside": {
+      "message": "{temp} °C er uden for {min}-{max} °C"
+    },
+    "range_gap": {
+      "message": "{low}-{high} °C: den høje skal være {gap} °C eller mere over den lave"
+    },
+    "days_object": {
+      "message": "days skal være et objekt, f.eks. {example}"
+    },
+    "unknown_day": {
+      "message": "Ukendt dag {day}: brug {days}"
+    },
+    "day_list": {
+      "message": "{day} skal være en liste, f.eks. {example}"
+    },
+    "not_a_number": {
+      "message": "{day} {time}: {field} {value} er ikke et tal"
+    },
+    "bad_time": {
+      "message": "{day}: tidspunktet {value} er ikke HH:MM"
+    },
+    "two_setpoints": {
+      "message": "{day}: to setpunkter kl. {time}"
+    },
+    "too_many_setpoints": {
+      "message": "Nest tager højst {max} setpunkter pr. dag"
+    },
+    "no_setpoint": {
+      "message": "Intet setpunkt {uid} i tidsplanen"
+    },
+    "setpoint_whole_day": {
+      "message": "Et setpunkt skal have et starttidspunkt, ikke en hel dag"
+    },
+    "setpoint_whole_minute": {
+      "message": "Et setpunkt starter på et helt minut"
+    },
+    "title_range": {
+      "message": "Navngiv begivenheden efter dens lave og høje værdi, f.eks. 19-24 °C"
+    },
+    "title_temp": {
+      "message": "Navngiv begivenheden efter dens temperatur, f.eks. 20.5 °C"
+    },
+    "weekly_only": {
+      "message": "Nests tidsplan gentages hver uge: lad begivenheden gentages ugentligt uden slutdato"
+    },
+    "unknown_repeat_day": {
+      "message": "Ukendt dag {day} i begivenhedens gentagelse"
+    },
+    "zha_no_cluster": {
+      "message": "ZHA har ingen klynge {cluster} for {ieee}: {error}"
+    },
+    "zha_get_refused": {
+      "message": "Nest afviste Get Weekly Schedule: {response}"
+    },
+    "zha_set_refused": {
+      "message": "Nest afviste Set Weekly Schedule: {status}"
+    },
+    "zha_hot_water_read": {
+      "message": "Nest læste ikke sit varme vand for dag {day}: {response}"
+    },
+    "zha_hot_water_refused": {
+      "message": "Nest afviste varmtvandsperioderne {periods}: {status}"
+    },
+    "zha_mixed_week": {
+      "message": "Nests tidsplan ændrede sig under læsningen: prøv igen"
+    }
+  }
+}

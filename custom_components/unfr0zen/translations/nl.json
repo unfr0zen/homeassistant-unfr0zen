@@ -1,0 +1,247 @@
+{
+  "config": {
+    "flow_title": "{base}",
+    "step": {
+      "user": {
+        "title": "Hoe Home Assistant de Nest bereikt",
+        "menu_options": {
+          "nestlocal": "MQTT",
+          "zigbee2mqtt": "Zigbee2MQTT",
+          "zha": "ZHA",
+          "matter": "Matter"
+        }
+      },
+      "confirm": {
+        "description": "Het schema toevoegen dat nestlocal op {base} publiceert?"
+      },
+      "nestlocal": {
+        "data": {
+          "base": "Topic"
+        },
+        "data_description": {
+          "base": "Het prefix van nestlocal en het serienummer van het apparaat, zoals nestlocal/02AA01AC123456AB"
+        }
+      },
+      "zigbee2mqtt": {
+        "data": {
+          "base": "Zigbee2MQTT-basistopic"
+        }
+      },
+      "zigbee2mqtt_device": {
+        "data": {
+          "friendly_name": "Thermostaat"
+        }
+      },
+      "zha": {
+        "data": {
+          "device_id": "Thermostaat"
+        }
+      },
+      "matter": {
+        "data": {
+          "device_id": "Thermostaat"
+        }
+      }
+    },
+    "error": {
+      "no_schedule": "Geen heating_times op dat topic: controleer het prefix en het serienummer",
+      "no_device": "Zigbee2MQTT toont geen unfr0zen-Nest onder dat basistopic"
+    },
+    "abort": {
+      "already_configured": "Het schema van deze Nest is al toegevoegd",
+      "mqtt_not_ready": "MQTT is niet ingesteld in Home Assistant",
+      "no_device": "Geen unfr0zen-Nest in die integratie",
+      "not_a_schedule": "Dat topic bevat geen schema"
+    }
+  },
+  "entity": {
+    "calendar": {
+      "schedule": {
+        "name": "Verwarmingsschema"
+      },
+      "hot_water": {
+        "name": "Warmwaterschema"
+      }
+    }
+  },
+  "services": {
+    "set_schedule": {
+      "name": "Schema instellen",
+      "description": "Vervangt de genoemde dagen van het verwarmingsschema van de Nest, elke dag in zijn geheel.",
+      "fields": {
+        "days": {
+          "name": "Dagen",
+          "description": "Per dag (mon tot sun) een lijst schakelmomenten, elk met een tijd (HH:MM) en een temperatuur in °C. Niet genoemde dagen houden de hunne."
+        }
+      }
+    },
+    "set_hot_water_schedule": {
+      "name": "Warmwaterschema instellen",
+      "description": "Vervangt de genoemde dagen van het warmwaterschema van de Nest, elke dag in zijn geheel.",
+      "fields": {
+        "days": {
+          "name": "Dagen",
+          "description": "Per dag (mon tot sun) een lijst aan-periodes, elk met een aan- en een uittijd (HH:MM); een uittijd vóór de aantijd loopt door na middernacht. Niet genoemde dagen houden de hunne."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "hot_water_calendar": {
+      "message": "{entity_id} is een warmwateragenda: gebruik unfr0zen.set_hot_water_schedule"
+    },
+    "heating_calendar": {
+      "message": "{entity_id} is een verwarmingsagenda: gebruik unfr0zen.set_schedule"
+    },
+    "not_writable": {
+      "message": "Dit Nest-schema ({mode}) kan niet vanuit Home Assistant worden gewijzigd"
+    },
+    "mqtt_nothing": {
+      "message": "Niets op {topic}"
+    },
+    "mqtt_not_taken_schedule": {
+      "message": "De Nest heeft het schema niet overgenomen: zie het log van nestlocal"
+    },
+    "mqtt_not_taken_hot_water": {
+      "message": "De Nest heeft het warmwaterschema niet overgenomen: zie het log van nestlocal"
+    },
+    "z2m_nothing": {
+      "message": "Zigbee2MQTT stuurde geen {key} voor {topic}"
+    },
+    "z2m_not_taken_schedule": {
+      "message": "De Nest heeft het schema via Zigbee2MQTT niet overgenomen"
+    },
+    "z2m_not_taken_hot_water": {
+      "message": "De Nest heeft het warmwaterschema via Zigbee2MQTT niet overgenomen"
+    },
+    "too_many_periods": {
+      "message": "De Nest accepteert hoogstens {max} warmwaterperiodes per dag"
+    },
+    "periods_overlap": {
+      "message": "Warmwaterperiodes overlappen op {day} om {time}"
+    },
+    "period_times": {
+      "message": "{day}: aan en uit moeten HH:MM zijn, niet {entry}"
+    },
+    "period_empty": {
+      "message": "{day} {time}: een periode eindigt na het begin"
+    },
+    "no_period": {
+      "message": "Geen warmwaterperiode {uid} in het schema"
+    },
+    "period_whole_days": {
+      "message": "Een warmwaterperiode heeft begin- en eindtijden nodig, geen hele dagen"
+    },
+    "period_whole_minutes": {
+      "message": "Een warmwaterperiode begint en eindigt op hele minuten"
+    },
+    "period_order": {
+      "message": "Een warmwaterperiode eindigt na het begin, binnen een dag"
+    },
+    "matter_no_node": {
+      "message": "Matter heeft geen node voor apparaat {device}: {error}"
+    },
+    "changed_while_editing_schedule": {
+      "message": "Het schema van de Nest is tijdens het bewerken gewijzigd: probeer het opnieuw"
+    },
+    "changed_while_editing_hot_water": {
+      "message": "Het warmwaterschema van de Nest is tijdens het bewerken gewijzigd: probeer het opnieuw"
+    },
+    "matter_not_taken_schedule": {
+      "message": "De Nest heeft het schema niet overgenomen"
+    },
+    "matter_not_taken_hot_water": {
+      "message": "De Nest heeft het warmwaterschema niet overgenomen"
+    },
+    "matter_no_water_heater": {
+      "message": "Matter-apparaat {device} heeft geen waterverwarmer"
+    },
+    "matter_no_endpoint": {
+      "message": "De Matter-server heeft geen endpoint {endpoint} van de Nest: interview het apparaat opnieuw"
+    },
+    "nestlocal_too_old": {
+      "message": "nestlocal is te oud voor het Matter-schema: werk het bij"
+    },
+    "matter_failed": {
+      "message": "Matter: {error}"
+    },
+    "begin_no_answer": {
+      "message": "De Nest heeft niet geantwoord op het verzoek om het schrijven van het schema te starten"
+    },
+    "begin_refused": {
+      "message": "De Nest weigerde het schrijven van het schema te starten: {status}"
+    },
+    "commit_no_answer": {
+      "message": "De Nest heeft niet geantwoord op het verzoek om het schema vast te leggen"
+    },
+    "commit_refused": {
+      "message": "De Nest weigerde het schema vast te leggen: {status}"
+    },
+    "temp_outside": {
+      "message": "{temp} °C ligt buiten {min}-{max} °C"
+    },
+    "range_gap": {
+      "message": "{low}-{high} °C: de hoge waarde moet {gap} °C of meer boven de lage liggen"
+    },
+    "days_object": {
+      "message": "days moet een object zijn, zoals {example}"
+    },
+    "unknown_day": {
+      "message": "Onbekende dag {day}: gebruik {days}"
+    },
+    "day_list": {
+      "message": "{day} moet een lijst zijn, zoals {example}"
+    },
+    "not_a_number": {
+      "message": "{day} {time}: {field} {value} is geen getal"
+    },
+    "bad_time": {
+      "message": "{day}: tijd {value} is geen HH:MM"
+    },
+    "two_setpoints": {
+      "message": "{day}: twee schakelmomenten om {time}"
+    },
+    "too_many_setpoints": {
+      "message": "De Nest accepteert hoogstens {max} schakelmomenten per dag"
+    },
+    "no_setpoint": {
+      "message": "Geen schakelmoment {uid} in het schema"
+    },
+    "setpoint_whole_day": {
+      "message": "Een schakelmoment heeft een begintijd nodig, geen hele dag"
+    },
+    "setpoint_whole_minute": {
+      "message": "Een schakelmoment begint op een hele minuut"
+    },
+    "title_range": {
+      "message": "Noem de gebeurtenis naar de lage en hoge waarde, zoals 19-24 °C"
+    },
+    "title_temp": {
+      "message": "Noem de gebeurtenis naar de temperatuur, zoals 20,5 °C"
+    },
+    "weekly_only": {
+      "message": "Het schema van de Nest herhaalt zich elke week: laat de gebeurtenis wekelijks herhalen, zonder einde"
+    },
+    "unknown_repeat_day": {
+      "message": "Onbekende dag {day} in de herhaling van de gebeurtenis"
+    },
+    "zha_no_cluster": {
+      "message": "ZHA heeft geen cluster {cluster} voor {ieee}: {error}"
+    },
+    "zha_get_refused": {
+      "message": "De Nest weigerde Get Weekly Schedule: {response}"
+    },
+    "zha_set_refused": {
+      "message": "De Nest weigerde Set Weekly Schedule: {status}"
+    },
+    "zha_hot_water_read": {
+      "message": "De Nest las zijn warm water voor dag {day} niet: {response}"
+    },
+    "zha_hot_water_refused": {
+      "message": "De Nest weigerde de warmwaterperiodes {periods}: {status}"
+    },
+    "zha_mixed_week": {
+      "message": "Het schema van de Nest veranderde tijdens het lezen: probeer het opnieuw"
+    }
+  }
+}

@@ -5,7 +5,7 @@
       "user": {
         "title": "How Home Assistant reaches the Nest",
         "menu_options": {
-          "nestlocal": "nestlocal's MQTT topics",
+          "nestlocal": "MQTT",
           "zigbee2mqtt": "Zigbee2MQTT",
           "zha": "ZHA",
           "matter": "Matter"
@@ -84,6 +84,164 @@
           "description": "By day (mon to sun), a list of on periods, each an on and an off time (HH:MM); an off before its on runs past midnight. Days not named keep theirs."
         }
       }
+    }
+  },
+  "exceptions": {
+    "hot_water_calendar": {
+      "message": "{entity_id} is a hot water calendar: use unfr0zen.set_hot_water_schedule"
+    },
+    "heating_calendar": {
+      "message": "{entity_id} is a heating calendar: use unfr0zen.set_schedule"
+    },
+    "not_writable": {
+      "message": "This Nest schedule ({mode}) can't be changed from Home Assistant"
+    },
+    "mqtt_nothing": {
+      "message": "Nothing on {topic}"
+    },
+    "mqtt_not_taken_schedule": {
+      "message": "The Nest did not take the schedule: see nestlocal's log"
+    },
+    "mqtt_not_taken_hot_water": {
+      "message": "The Nest did not take the hot water schedule: see nestlocal's log"
+    },
+    "z2m_nothing": {
+      "message": "Zigbee2MQTT sent no {key} for {topic}"
+    },
+    "z2m_not_taken_schedule": {
+      "message": "The Nest did not take the schedule through Zigbee2MQTT"
+    },
+    "z2m_not_taken_hot_water": {
+      "message": "The Nest did not take the hot water schedule through Zigbee2MQTT"
+    },
+    "too_many_periods": {
+      "message": "The Nest takes at most {max} hot water periods a day"
+    },
+    "periods_overlap": {
+      "message": "Hot water periods overlap on {day} at {time}"
+    },
+    "period_times": {
+      "message": "{day}: on and off must be HH:MM, not {entry}"
+    },
+    "period_empty": {
+      "message": "{day} {time}: a period goes off after it comes on"
+    },
+    "no_period": {
+      "message": "No hot water period {uid} in the schedule"
+    },
+    "period_whole_days": {
+      "message": "A hot water period needs start and end times, not whole days"
+    },
+    "period_whole_minutes": {
+      "message": "A hot water period starts and ends on whole minutes"
+    },
+    "period_order": {
+      "message": "A hot water period ends after it starts, within a day"
+    },
+    "matter_no_node": {
+      "message": "Matter has no node for device {device}: {error}"
+    },
+    "changed_while_editing_schedule": {
+      "message": "The Nest's schedule changed while being edited: try again"
+    },
+    "changed_while_editing_hot_water": {
+      "message": "The Nest's hot water schedule changed while being edited: try again"
+    },
+    "matter_not_taken_schedule": {
+      "message": "The Nest did not take the schedule"
+    },
+    "matter_not_taken_hot_water": {
+      "message": "The Nest did not take the hot water schedule"
+    },
+    "matter_no_water_heater": {
+      "message": "Matter device {device} has no water heater"
+    },
+    "matter_no_endpoint": {
+      "message": "The Matter server has no endpoint {endpoint} of the Nest: reinterview it"
+    },
+    "nestlocal_too_old": {
+      "message": "nestlocal too old for the Matter schedule: update it"
+    },
+    "matter_failed": {
+      "message": "Matter: {error}"
+    },
+    "begin_no_answer": {
+      "message": "The Nest did not answer the request to begin the schedule write"
+    },
+    "begin_refused": {
+      "message": "The Nest refused to begin the schedule write: {status}"
+    },
+    "commit_no_answer": {
+      "message": "The Nest did not answer the request to commit the schedule"
+    },
+    "commit_refused": {
+      "message": "The Nest refused to commit the schedule: {status}"
+    },
+    "temp_outside": {
+      "message": "{temp} °C is outside {min}-{max} °C"
+    },
+    "range_gap": {
+      "message": "{low}-{high} °C: the high must be {gap} °C or more above the low"
+    },
+    "days_object": {
+      "message": "days must be an object such as {example}"
+    },
+    "unknown_day": {
+      "message": "Unknown day {day}: use {days}"
+    },
+    "day_list": {
+      "message": "{day} must be a list such as {example}"
+    },
+    "not_a_number": {
+      "message": "{day} {time}: {field} {value} is not a number"
+    },
+    "bad_time": {
+      "message": "{day}: time {value} is not HH:MM"
+    },
+    "two_setpoints": {
+      "message": "{day}: two setpoints at {time}"
+    },
+    "too_many_setpoints": {
+      "message": "The Nest takes at most {max} setpoints a day"
+    },
+    "no_setpoint": {
+      "message": "No setpoint {uid} in the schedule"
+    },
+    "setpoint_whole_day": {
+      "message": "A setpoint needs a start time, not a whole day"
+    },
+    "setpoint_whole_minute": {
+      "message": "A setpoint starts on a whole minute"
+    },
+    "title_range": {
+      "message": "Name the event after its low and high, such as 19-24 °C"
+    },
+    "title_temp": {
+      "message": "Name the event after its temperature, such as 20.5 °C"
+    },
+    "weekly_only": {
+      "message": "The Nest's schedule repeats every week: make the event repeat weekly, with no end"
+    },
+    "unknown_repeat_day": {
+      "message": "Unknown day {day} in the event's repeat"
+    },
+    "zha_no_cluster": {
+      "message": "ZHA has no cluster {cluster} for {ieee}: {error}"
+    },
+    "zha_get_refused": {
+      "message": "The Nest refused Get Weekly Schedule: {response}"
+    },
+    "zha_set_refused": {
+      "message": "The Nest refused Set Weekly Schedule: {status}"
+    },
+    "zha_hot_water_read": {
+      "message": "The Nest did not read its hot water for day {day}: {response}"
+    },
+    "zha_hot_water_refused": {
+      "message": "The Nest refused the hot water periods {periods}: {status}"
+    },
+    "zha_mixed_week": {
+      "message": "The Nest's schedule changed while being read: try again"
     }
   }
 }

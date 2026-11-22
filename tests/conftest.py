@@ -12,11 +12,16 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 
 
 def week(**days):
-    """A heating_times object: every day empty but those given."""
+    """A heating_times object: every day empty but those given, each setpoint
+    a time and a temp, or a (low, high) pair for a range schedule."""
     names = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
+
+    def point(t, c):
+        return {"time": t, "low": c[0], "high": c[1]} if isinstance(c, tuple) else {"time": t, "temp": c}
+
     return {
         "mode": days.pop("mode", "heat"),
-        "days": {n: [{"time": t, "temp": c} for t, c in days.get(n, [])] for n in names},
+        "days": {n: [point(t, c) for t, c in days.get(n, [])] for n in names},
     }
 
 
@@ -30,7 +35,13 @@ def expected_lingering_timers() -> bool:
 def short_presence_wait():
     """A unit without hot water is known as soon as its retained topic would
     have arrived."""
-    with patch("custom_components.unfr0zen.mqtt_backend.PRESENCE_TIMEOUT", 0.05):
+    try:
+        from custom_components.unfr0zen import mqtt_backend
+    except ImportError:
+        # Tests that read the package's files alone, without importing it.
+        yield
+        return
+    with patch.object(mqtt_backend, "PRESENCE_TIMEOUT", 0.05):
         yield
 
 

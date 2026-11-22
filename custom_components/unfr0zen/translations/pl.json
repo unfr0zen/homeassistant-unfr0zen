@@ -1,0 +1,247 @@
+{
+  "config": {
+    "flow_title": "{base}",
+    "step": {
+      "user": {
+        "title": "Jak Home Assistant łączy się z termostatem Nest",
+        "menu_options": {
+          "nestlocal": "MQTT",
+          "zigbee2mqtt": "Zigbee2MQTT",
+          "zha": "ZHA",
+          "matter": "Matter"
+        }
+      },
+      "confirm": {
+        "description": "Dodać harmonogram publikowany przez nestlocal w {base}?"
+      },
+      "nestlocal": {
+        "data": {
+          "base": "Temat"
+        },
+        "data_description": {
+          "base": "Prefiks nestlocal i numer seryjny urządzenia, np. nestlocal/02AA01AC123456AB"
+        }
+      },
+      "zigbee2mqtt": {
+        "data": {
+          "base": "Temat bazowy Zigbee2MQTT"
+        }
+      },
+      "zigbee2mqtt_device": {
+        "data": {
+          "friendly_name": "Termostat"
+        }
+      },
+      "zha": {
+        "data": {
+          "device_id": "Termostat"
+        }
+      },
+      "matter": {
+        "data": {
+          "device_id": "Termostat"
+        }
+      }
+    },
+    "error": {
+      "no_schedule": "Brak heating_times w tym temacie: sprawdź prefiks i numer seryjny",
+      "no_device": "Zigbee2MQTT nie wymienia w tym temacie bazowym żadnego termostatu Nest z unfr0zen"
+    },
+    "abort": {
+      "already_configured": "Harmonogram tego termostatu Nest jest już dodany",
+      "mqtt_not_ready": "MQTT nie jest skonfigurowane w Home Assistant",
+      "no_device": "Brak termostatu Nest z unfr0zen w tej integracji",
+      "not_a_schedule": "Ten temat nie zawiera harmonogramu"
+    }
+  },
+  "entity": {
+    "calendar": {
+      "schedule": {
+        "name": "Harmonogram ogrzewania"
+      },
+      "hot_water": {
+        "name": "Harmonogram ciepłej wody"
+      }
+    }
+  },
+  "services": {
+    "set_schedule": {
+      "name": "Ustaw harmonogram",
+      "description": "Zastępuje wskazane dni harmonogramu ogrzewania termostatu Nest, każdy dzień w całości.",
+      "fields": {
+        "days": {
+          "name": "Dni",
+          "description": "Dla każdego dnia (mon do sun) lista nastaw, każda z godziną (HH:MM) i temperaturą w °C. Dni niewymienione zachowują swoje."
+        }
+      }
+    },
+    "set_hot_water_schedule": {
+      "name": "Ustaw harmonogram ciepłej wody",
+      "description": "Zastępuje wskazane dni harmonogramu ciepłej wody termostatu Nest, każdy dzień w całości.",
+      "fields": {
+        "days": {
+          "name": "Dni",
+          "description": "Dla każdego dnia (mon do sun) lista okresów włączenia, każdy z godziną włączenia i wyłączenia (HH:MM); wyłączenie przed włączeniem przechodzi przez północ. Dni niewymienione zachowują swoje."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "hot_water_calendar": {
+      "message": "{entity_id} to kalendarz ciepłej wody: użyj unfr0zen.set_hot_water_schedule"
+    },
+    "heating_calendar": {
+      "message": "{entity_id} to kalendarz ogrzewania: użyj unfr0zen.set_schedule"
+    },
+    "not_writable": {
+      "message": "Tego harmonogramu Nest ({mode}) nie można zmienić z Home Assistant"
+    },
+    "mqtt_nothing": {
+      "message": "Brak danych w {topic}"
+    },
+    "mqtt_not_taken_schedule": {
+      "message": "Nest nie przyjął harmonogramu: sprawdź dziennik nestlocal"
+    },
+    "mqtt_not_taken_hot_water": {
+      "message": "Nest nie przyjął harmonogramu ciepłej wody: sprawdź dziennik nestlocal"
+    },
+    "z2m_nothing": {
+      "message": "Zigbee2MQTT nie wysłał {key} dla {topic}"
+    },
+    "z2m_not_taken_schedule": {
+      "message": "Nest nie przyjął harmonogramu przez Zigbee2MQTT"
+    },
+    "z2m_not_taken_hot_water": {
+      "message": "Nest nie przyjął harmonogramu ciepłej wody przez Zigbee2MQTT"
+    },
+    "too_many_periods": {
+      "message": "Nest przyjmuje najwyżej {max} okresów ciepłej wody dziennie"
+    },
+    "periods_overlap": {
+      "message": "{day} o {time}: okresy ciepłej wody nakładają się"
+    },
+    "period_times": {
+      "message": "{day}: włączenie i wyłączenie muszą mieć format HH:MM, a nie {entry}"
+    },
+    "period_empty": {
+      "message": "{day} {time}: okres wyłącza się po włączeniu"
+    },
+    "no_period": {
+      "message": "Brak okresu ciepłej wody {uid} w harmonogramie"
+    },
+    "period_whole_days": {
+      "message": "Okres ciepłej wody wymaga godziny początku i końca, a nie całych dni"
+    },
+    "period_whole_minutes": {
+      "message": "Okres ciepłej wody zaczyna się i kończy w pełnych minutach"
+    },
+    "period_order": {
+      "message": "Okres ciepłej wody kończy się po swoim początku, w obrębie jednego dnia"
+    },
+    "matter_no_node": {
+      "message": "Matter nie ma węzła dla urządzenia {device}: {error}"
+    },
+    "changed_while_editing_schedule": {
+      "message": "Harmonogram termostatu Nest zmienił się podczas edycji: spróbuj ponownie"
+    },
+    "changed_while_editing_hot_water": {
+      "message": "Harmonogram ciepłej wody termostatu Nest zmienił się podczas edycji: spróbuj ponownie"
+    },
+    "matter_not_taken_schedule": {
+      "message": "Nest nie przyjął harmonogramu"
+    },
+    "matter_not_taken_hot_water": {
+      "message": "Nest nie przyjął harmonogramu ciepłej wody"
+    },
+    "matter_no_water_heater": {
+      "message": "Urządzenie Matter {device} nie ma podgrzewacza wody"
+    },
+    "matter_no_endpoint": {
+      "message": "Serwer Matter nie ma punktu końcowego {endpoint} termostatu Nest: przeprowadź ponowny wywiad z urządzeniem"
+    },
+    "nestlocal_too_old": {
+      "message": "nestlocal jest za stary dla harmonogramu Matter: zaktualizuj go"
+    },
+    "matter_failed": {
+      "message": "Matter: {error}"
+    },
+    "begin_no_answer": {
+      "message": "Nest nie odpowiedział na żądanie rozpoczęcia zapisu harmonogramu"
+    },
+    "begin_refused": {
+      "message": "Nest odmówił rozpoczęcia zapisu harmonogramu: {status}"
+    },
+    "commit_no_answer": {
+      "message": "Nest nie odpowiedział na żądanie zatwierdzenia harmonogramu"
+    },
+    "commit_refused": {
+      "message": "Nest odmówił zatwierdzenia harmonogramu: {status}"
+    },
+    "temp_outside": {
+      "message": "{temp} °C jest poza zakresem {min}-{max} °C"
+    },
+    "range_gap": {
+      "message": "{low}-{high} °C: górna wartość musi być o co najmniej {gap} °C wyższa od dolnej"
+    },
+    "days_object": {
+      "message": "days musi być obiektem, np. {example}"
+    },
+    "unknown_day": {
+      "message": "Nieznany dzień {day}: użyj {days}"
+    },
+    "day_list": {
+      "message": "{day} musi być listą, np. {example}"
+    },
+    "not_a_number": {
+      "message": "{day} {time}: {field} {value} nie jest liczbą"
+    },
+    "bad_time": {
+      "message": "{day}: godzina {value} nie ma formatu HH:MM"
+    },
+    "two_setpoints": {
+      "message": "{day}: dwie nastawy o {time}"
+    },
+    "too_many_setpoints": {
+      "message": "Nest przyjmuje najwyżej {max} nastaw dziennie"
+    },
+    "no_setpoint": {
+      "message": "Brak nastawy {uid} w harmonogramie"
+    },
+    "setpoint_whole_day": {
+      "message": "Nastawa wymaga godziny początku, a nie całego dnia"
+    },
+    "setpoint_whole_minute": {
+      "message": "Nastawa zaczyna się w pełnej minucie"
+    },
+    "title_range": {
+      "message": "Nazwij wydarzenie jego dolną i górną wartością, np. 19-24 °C"
+    },
+    "title_temp": {
+      "message": "Nazwij wydarzenie jego temperaturą, np. 20.5 °C"
+    },
+    "weekly_only": {
+      "message": "Harmonogram termostatu Nest powtarza się co tydzień: ustaw powtarzanie wydarzenia co tydzień, bez końca"
+    },
+    "unknown_repeat_day": {
+      "message": "Nieznany dzień {day} w powtarzaniu wydarzenia"
+    },
+    "zha_no_cluster": {
+      "message": "ZHA nie ma klastra {cluster} dla {ieee}: {error}"
+    },
+    "zha_get_refused": {
+      "message": "Nest odrzucił Get Weekly Schedule: {response}"
+    },
+    "zha_set_refused": {
+      "message": "Nest odrzucił Set Weekly Schedule: {status}"
+    },
+    "zha_hot_water_read": {
+      "message": "Nest nie odczytał ciepłej wody dla dnia {day}: {response}"
+    },
+    "zha_hot_water_refused": {
+      "message": "Nest odrzucił okresy ciepłej wody {periods}: {status}"
+    },
+    "zha_mixed_week": {
+      "message": "Harmonogram Nesta zmienił się podczas odczytu: spróbuj ponownie"
+    }
+  }
+}

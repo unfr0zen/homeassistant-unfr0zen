@@ -24,6 +24,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.event import async_track_time_interval
 
 from .backend import Backend, HotWaterBackend, day_bit
+from .errors import error
 from .hotwater import DAY_MINUTES, HotWater, Period, Periods
 from .schedule import Schedule, Setpoint
 
@@ -41,7 +42,8 @@ MODE_OFF, MODE_HEAT = 0, 4
 ATOMIC_TIMEOUT = 10000
 
 BEGIN_WRITE, COMMIT_WRITE, ROLLBACK_WRITE = 0, 1, 2
-SYSTEM_MODE = {"heat": 4, "cool": 3}
+# A schedule's kind as its system mode: a range schedule is Auto.
+SYSTEM_MODE = {"heat": 4, "cool": 3, "range": 1}
 STATUS = {0x87: "constraint error", 0x89: "resource exhausted", 0x9C: "busy", 0xCB: "invalid in state"}
 
 
@@ -49,7 +51,7 @@ class MatterBackend(Backend):
     """One unit's heating on Matter, by its Home Assistant device."""
 
     poll = dt.timedelta(minutes=15)
-    what = "schedule"
+    kind = "schedule"
 
     def __init__(self, hass: HomeAssistant, device_id: str) -> None:
         super().__init__(hass)
@@ -66,7 +68,7 @@ class MatterBackend(Backend):
                 raise KeyError(self.device_id)
             return get_matter(self.hass).matter_client, node
         except (ImportError, KeyError, IndexError, AttributeError, RuntimeError) as err:
-            raise HomeAssistantError(f"Matter has no node for device {self.device_id}: {err!r}") from err
+            raise error("matter_no_node", device=self.device_id, error=repr(err)) from err
 
     def _endpoint(self, node: Any) -> int:
         """The endpoint whose Thermostat cluster holds the schedule."""
@@ -89,8 +91,11 @@ class MatterBackend(Backend):
                     Thermostat.Structs.ScheduleTransitionStruct(
                         dayOfWeek=day_bit(d),
                         transitionTime=p.minute,
-                        heatingSetpoint=round(p.temp * 100) if current.mode == "heat" else None,
-                        coolingSetpoint=round(p.temp * 100) if current.mode == "cool" else None,
+                        # A range's low heats and its high cools.
+                        heatingSetpoint=round(p.temp * 100) if current.mode in ("heat", "range") else None,
+                        coolingSetpoint=round((p.high if current.mode == "range" else p.temp) * 100)
+                        if current.mode in ("cool", "range")
+                        else None,
                     )
                     for d in range(7)
                     for p in week[d]
@@ -131,7 +136,7 @@ class MatterBackend(Backend):
         # edit was checked against.
         fresh = await self.async_read()
         if getattr(fresh, "mode", None) != getattr(current, "mode", None):
-            raise HomeAssistantError(f"The Nest's {self.what} changed while being edited: try again")
+            raise error(f"changed_while_editing_{self.kind}")
         current = fresh
         week = [days.get(d, current.days[d]) for d in range(7)]
         value = self._encode(current, week)
@@ -147,29 +152,29 @@ class MatterBackend(Backend):
                 ),
             )
 
-        _check(f"begin the {self.what} write", await _call(atomic(BEGIN_WRITE)))
+        _check("begin", await _call(atomic(BEGIN_WRITE)))
         try:
             await _call(client.write_attribute(node.node_id, _path(endpoint), value))
-            _check(f"commit the {self.what}", await _call(atomic(COMMIT_WRITE)))
+            _check("commit", await _call(atomic(COMMIT_WRITE)))
         except HomeAssistantError:
             with contextlib.suppress(Exception):
                 await atomic(ROLLBACK_WRITE)
             raise
         # A write the server didn't pass on commits nothing: check the unit.
         if (await self.async_read()).days != tuple(tuple(d) for d in week):
-            raise HomeAssistantError(f"The Nest did not take the {self.what}")
+            raise error(f"matter_not_taken_{self.kind}")
 
 
 class MatterHotWater(MatterBackend, HotWaterBackend):
     """One unit's hot water on Matter: the Thermostat cluster of its Water
     Heater endpoint, which it has only with hot water control."""
 
-    what = "hot water schedule"
+    kind = "hot_water"
     _stop_watching: Callable[[], None] | None = None
 
     def _endpoint(self, node: Any) -> int:
         if (endpoint := water_heater(node)) is None:
-            raise HomeAssistantError(f"Matter device {self.device_id} has no water heater")
+            raise error("matter_no_water_heater", device=self.device_id)
         return endpoint
 
     def _decode(self, node: Any, endpoint: int) -> HotWater:
@@ -242,9 +247,9 @@ def _schedule(node: Any, endpoint: int, handle: bytes) -> Any:
     from chip.clusters.Objects import Thermostat
 
     if endpoint not in node.endpoints:
-        raise HomeAssistantError(f"The Matter server has no endpoint {endpoint} of the Nest: reinterview it")
+        raise error("matter_no_endpoint", endpoint=endpoint)
     if not node.endpoints[endpoint].has_attribute(Thermostat, Thermostat.Attributes.Schedules):
-        raise HomeAssistantError("nestlocal too old for the Matter schedule: update it")
+        raise error("nestlocal_too_old")
     schedules = node.get_attribute_value(endpoint, Thermostat, Thermostat.Attributes.Schedules) or []
     return next((s for s in schedules if s.scheduleHandle == handle), None)
 
@@ -277,23 +282,30 @@ def read(node: Any, endpoint: int = ENDPOINT) -> Schedule:
     nest = _schedule(node, endpoint, HANDLE)
     modes = {v: k for k, v in SYSTEM_MODE.items()}
     if nest is None:
-        # An empty week, of the kind ScheduleTypes offers; a range schedule
-        # offers none, as the Matter side can't carry it.
+        # An empty week, of the kind ScheduleTypes offers a schedule of.
         types = node.get_attribute_value(endpoint, Thermostat, Thermostat.Attributes.ScheduleTypes) or []
-        mode = next((modes[int(t.systemMode)] for t in types if int(t.systemMode) in modes), "range")
+        offered = (t for t in types if int(t.systemMode) in modes and int(t.numberOfSchedules or 0) > 0)
+        mode = next((modes[int(t.systemMode)] for t in offered), "unknown")
         return Schedule(mode, ((),) * 7)
-    mode = modes.get(int(nest.systemMode), "range")
-    week: list[dict[int, float]] = [{} for _ in range(7)]
+    mode = modes.get(int(nest.systemMode), "unknown")
+    week: list[dict[int, Setpoint]] = [{} for _ in range(7)]
     for t in nest.transitions:
-        value = t.heatingSetpoint if mode == "heat" else t.coolingSetpoint
-        if value is None:
-            continue
+        # As reported: a rounded setpoint written back would change a day
+        # the edit left alone. A range's low heats and its high cools.
+        minute = int(t.transitionTime)
+        if mode == "range":
+            if t.heatingSetpoint is None or t.coolingSetpoint is None:
+                continue
+            point = Setpoint(minute, t.heatingSetpoint / 100, t.coolingSetpoint / 100)
+        else:
+            value = t.heatingSetpoint if mode == "heat" else t.coolingSetpoint
+            if value is None:
+                continue
+            point = Setpoint(minute, value / 100)
         for d in range(7):
             if int(t.dayOfWeek) & day_bit(d):
-                # As reported: a rounded setpoint written back would change
-                # a day the edit left alone.
-                week[d][int(t.transitionTime)] = value / 100
-    return Schedule(mode, tuple(tuple(Setpoint(m, c) for m, c in sorted(day.items())) for day in week))
+                week[d][minute] = point
+    return Schedule(mode, tuple(tuple(day[m] for m in sorted(day)) for day in week))
 
 
 async def _call(request: Any) -> Any:
@@ -303,7 +315,7 @@ async def _call(request: Any) -> Any:
     except HomeAssistantError:
         raise
     except Exception as err:
-        raise HomeAssistantError(f"Matter: {err}") from err
+        raise error("matter_failed", error=err) from err
 
 
 def _field(obj: Any, name: str, tag: int) -> Any:
@@ -313,12 +325,12 @@ def _field(obj: Any, name: str, tag: int) -> Any:
     return getattr(obj, name, None)
 
 
-def _check(action: str, response: Any) -> None:
+def _check(step: str, response: Any) -> None:
     """Raises unless an AtomicResponse says success."""
     if response is None:
-        raise HomeAssistantError(f"The Nest did not answer the request to {action}")
+        raise error(f"{step}_no_answer")
     if int(_field(response, "statusCode", 0) or 0) == 0:
         return
     statuses = _field(response, "attributeStatus", 1) or []
     code = int(_field(statuses[0], "statusCode", 1) or 1) if statuses else 1
-    raise HomeAssistantError(f"The Nest refused to {action}: {STATUS.get(code, f'status 0x{code:02X}')}")
+    raise error(f"{step}_refused", status=STATUS.get(code, f"status 0x{code:02X}"))

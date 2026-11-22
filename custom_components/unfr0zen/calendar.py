@@ -9,7 +9,6 @@ from typing import Any
 from homeassistant.components.calendar import CalendarEntity, CalendarEntityFeature, CalendarEvent
 from homeassistant.const import ATTR_ENTITY_ID
 from homeassistant.core import HomeAssistant, ServiceCall
-from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_platform, entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -30,6 +29,7 @@ from .const import (
     ZHA,
     ZIGBEE_MATTER_LIMITS,
 )
+from .errors import error, invalid
 from .schedule import (
     MAX_PER_DAY,
     RRULE_DAYS,
@@ -117,16 +117,17 @@ class _UnitCalendar(CoordinatorEntity[ScheduleCoordinator], CalendarEntity):
         return attributes
 
     async def async_set_schedule(self, days: dict[str, Any]) -> None:
-        raise ServiceValidationError(f"{self.entity_id} is a hot water calendar: use unfr0zen.set_hot_water_schedule")
+        raise invalid("hot_water_calendar", entity_id=self.entity_id)
 
     async def async_set_hot_water_schedule(self, days: dict[str, Any]) -> None:
-        raise ServiceValidationError(f"{self.entity_id} is a heating calendar: use unfr0zen.set_schedule")
+        raise invalid("heating_calendar", entity_id=self.entity_id)
 
 
 def _related(hass: HomeAssistant, device: dr.DeviceEntry) -> dict[str, str | None]:
     """The unit's climate entity, hot water schedule switch, hot water
     sensor, boost and water heater, on its device; nestlocal's discovery ids
-    end in their keys, Zigbee2MQTT's in their keys and `_zigbee2mqtt`."""
+    end in their keys, Zigbee2MQTT's in their keys and `_zigbee2mqtt`, and
+    Matter's switches are named after their endpoints' labels."""
 
     def keyed(domain: str, *keys: str) -> str | None:
         for key in keys:
@@ -135,14 +136,23 @@ def _related(hass: HomeAssistant, device: dr.DeviceEntry) -> dict[str, str | Non
                     return e.entity_id
         return None
 
+    def labelled(domain: str, label: str) -> str | None:
+        # Matter's are named after their endpoint's label: "Switch (Hot water schedule)".
+        return next(
+            (e.entity_id for e in entries if e.domain == domain and (e.original_name or "").endswith(f"({label})")),
+            None,
+        )
+
     entries = er.async_entries_for_device(er.async_get(hass), device.id)
     return {
         "climate": next((e.entity_id for e in entries if e.domain == "climate"), None),
-        "hot_water_switch": keyed("switch", "hot_water_schedule"),
+        "hot_water_switch": keyed("switch", "hot_water_schedule") or labelled("switch", "Hot water schedule"),
         # nestlocal's hot_water_active, Zigbee2MQTT's hot_water.
         "hot_water_active": keyed("binary_sensor", "hot_water_active", "hot_water"),
         # nestlocal's select of minutes, Zigbee2MQTT's switch of a fixed boost.
-        "hot_water_boost": keyed("select", "hot_water_boost") or keyed("switch", "hot_water_boost"),
+        "hot_water_boost": keyed("select", "hot_water_boost")
+        or keyed("switch", "hot_water_boost")
+        or labelled("switch", "Hot water boost"),
         "water_heater": next((e.entity_id for e in entries if e.domain == "water_heater"), None),
     }
 
@@ -183,8 +193,8 @@ class ScheduleCalendar(_UnitCalendar):
 
     async def async_set_schedule(self, days: dict[str, Any]) -> None:
         """Replaces the named days whole."""
-        changes = parse_days(days, self._limits)
         self._writable()
+        changes = parse_days(days, self._limits, self.coordinator.data.mode)
         await self.coordinator.async_write(changes)
 
     @property
@@ -202,8 +212,8 @@ class ScheduleCalendar(_UnitCalendar):
         return [_event(o) for o in occurrences(self.coordinator.data, start_date, end_date, tz)]
 
     async def async_create_event(self, **kwargs: Any) -> None:
-        days, setpoint = parse_event(kwargs, dt_util.get_default_time_zone(), self._limits)
         week = self._writable()
+        days, setpoint = parse_event(kwargs, dt_util.get_default_time_zone(), self._limits, self.coordinator.data.mode)
         await self.coordinator.async_write({d: with_setpoint(week[d], setpoint) for d in days})
 
     async def async_update_event(
@@ -216,7 +226,7 @@ class ScheduleCalendar(_UnitCalendar):
         # One occurrence is its whole series: the schedule repeats every week.
         week = self._writable()
         day, old = from_uid(self.coordinator.data, uid)
-        days, setpoint = parse_event(event, dt_util.get_default_time_zone(), self._limits)
+        days, setpoint = parse_event(event, dt_util.get_default_time_zone(), self._limits, self.coordinator.data.mode)
         changes = {day: without(week[day], old)}
         for d in days:
             changes[d] = with_setpoint(changes.get(d, week[d]), setpoint)
@@ -235,7 +245,7 @@ class ScheduleCalendar(_UnitCalendar):
     def _writable(self) -> tuple[Day, ...]:
         schedule = self.coordinator.data
         if not schedule.writable:
-            raise HomeAssistantError(f"The Nest's {schedule.mode} schedule can't be changed from here")
+            raise error("not_writable", mode=schedule.mode)
         return schedule.days
 
 

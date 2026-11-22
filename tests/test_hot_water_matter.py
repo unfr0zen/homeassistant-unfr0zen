@@ -139,7 +139,7 @@ async def test_a_write_the_unit_did_not_apply_fails(hass):
 async def test_a_refused_commit_is_rolled_back(hass):
     c = server([], OK, {"0": 1, "1": [{"0": 0x51, "1": 0x87}]}, OK)
     b, p = backend(hass, c)
-    with pytest.raises(HomeAssistantError, match="refused to commit the hot water schedule: constraint error"):
+    with pytest.raises(HomeAssistantError, match="refused to commit the schedule: constraint error"):
         await b.async_write(HotWater(EMPTY), {2: (Period(360, 420),)})
     p.stop()
     assert [dataclass_to_dict(call.args[2])["requestType"] for call in c.send_device_command.call_args_list] == [

@@ -7,14 +7,14 @@ import re
 from unittest.mock import MagicMock, patch
 
 from homeassistant.components.frontend import DATA_EXTRA_MODULE_URL, UrlManager
-from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
+from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.setup import async_setup_component
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_mqtt_message
 
 from custom_components.unfr0zen import ScheduleCoordinator
-from custom_components.unfr0zen.calendar import HotWaterCalendar
+from custom_components.unfr0zen.calendar import HotWaterCalendar, _related
 from custom_components.unfr0zen.hotwater import HotWater, from_text
 
 from .conftest import hot_water, week
@@ -218,11 +218,17 @@ async def test_set_schedule_refuses_what_the_nest_cannot_take(hass, unit, days, 
     assert written(unit, "heating_times") == []
 
 
-async def test_set_schedule_refuses_a_range_schedule(hass, unit):
+async def test_set_schedule_takes_a_range_schedules_lows_and_highs(hass, unit):
     async_fire_mqtt_message(hass, f"{BASE}/heating_times", json.dumps(week(mode="range")))
     await hass.async_block_till_done()
-    with pytest.raises(HomeAssistantError, match="range schedule can't be changed"):
-        await call(hass, "set_schedule", HEATING_ENTITY, {"mon": []})
+    answer_writes(hass, unit, "heating_times", week(mode="range"))
+    tue = [{"time": "07:00", "low": 19, "high": 24}]
+    await call(hass, "set_schedule", HEATING_ENTITY, {"tue": tue})
+    assert written(unit, "heating_times") == [{"tue": [{"time": "07:00", "low": 19.0, "high": 24.0}]}]
+    with pytest.raises(ServiceValidationError, match="not a number"):
+        await call(hass, "set_schedule", HEATING_ENTITY, {"tue": [{"time": "07:00", "temp": 20}]})
+    with pytest.raises(ServiceValidationError, match=re.escape("1.5 °C or more")):
+        await call(hass, "set_schedule", HEATING_ENTITY, {"tue": [{"time": "07:00", "low": 20, "high": 21}]})
 
 
 async def test_set_hot_water_schedule_replaces_the_named_days(hass, unit):
@@ -329,3 +335,28 @@ async def test_an_action_on_the_device_reaches_only_its_calendar_of_that_kind(ha
 async def test_an_action_on_a_calendar_of_the_other_kind_is_refused(hass, unit):
     with pytest.raises(ServiceValidationError, match="is a hot water calendar"):
         await call(hass, "set_schedule", HOT_WATER_ENTITY, {"tue": []})
+
+
+async def test_matter_switches_found_by_their_labels(hass):
+    matter_entry = MockConfigEntry(domain="matter")
+    matter_entry.add_to_hass(hass)
+    nest = dr.async_get(hass).async_get_or_create(
+        config_entry_id=matter_entry.entry_id, identifiers={("matter", "deviceid_X-1")}, name="Nest Thermostat"
+    )
+    entities = er.async_get(hass)
+    for endpoint, label in [(15, "Eco cool limit"), (16, "Hot water boost"), (17, "Hot water schedule")]:
+        entities.async_get_or_create(
+            "switch",
+            "matter",
+            f"X-1-MatterNodeDevice-{endpoint}-MatterPlug-6-0",
+            config_entry=matter_entry,
+            device_id=nest.id,
+            original_name=f"Switch ({label})",
+            # Ids from before the endpoints moved, as Home Assistant keeps them.
+            suggested_object_id=f"nest_thermostat_switch_filter_{endpoint}",
+        )
+    related = _related(hass, nest)
+    assert (related["hot_water_switch"], related["hot_water_boost"]) == (
+        "switch.nest_thermostat_switch_filter_17",
+        "switch.nest_thermostat_switch_filter_16",
+    )

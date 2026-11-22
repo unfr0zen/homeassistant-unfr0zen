@@ -131,12 +131,27 @@ async def test_a_cool_schedule_reads_its_cooling_setpoints(hass):
     assert (schedule.mode, schedule.days[2]) == ("cool", (Setpoint(600, 24.0),))
 
 
-async def test_no_schedule_and_no_schedule_types_is_a_range_schedule(hass):
+async def test_no_schedule_and_no_schedule_types_is_of_no_kind_it_writes(hass):
     b, p = backend(hass, server([]))
     schedule = await b.async_read()
     p.stop()
-    assert schedule == Schedule("range", ((),) * 7)
+    assert schedule == Schedule("unknown", ((),) * 7)
     assert not schedule.writable
+
+
+async def test_an_auto_schedule_is_a_range_of_lows_and_highs(hass):
+    # Monday 06:30 19-24 °C: heating the low, cooling the high.
+    c = server(nest(1, {"0": 2, "1": 390, "4": 2400, "5": 1900}), OK, OK)
+    b, p = backend(hass, c)
+    schedule = await b.async_read()
+    assert schedule.mode == "range"
+    assert schedule.days[0] == (Setpoint(390, 19.0, 24.0),)
+    await b.async_write(schedule, {5: (Setpoint(480, 18.0, 25.0),)})
+    p.stop()
+    assert dataclass_to_tag_dict(c.write_attribute.call_args.args[2])[0]["4"] == [
+        {"0": 0x02, "1": 390, "4": 2400, "5": 1900},
+        {"0": 0x40, "1": 480, "4": 2500, "5": 1800},
+    ]
 
 
 async def test_a_nestlocal_without_schedules_is_named(hass):
@@ -284,13 +299,22 @@ async def test_a_commit_the_unit_did_not_apply_fails(hass):
     assert c.node.get_attribute_value(1, 513, 81)[0].transitions == [], "the cache holds the unit's week again"
 
 
-@pytest.mark.parametrize(("types", "mode"), [(HEAT_TYPES, "heat"), (COOL_TYPES, "cool")])
+@pytest.mark.parametrize(
+    ("types", "mode"),
+    [
+        (HEAT_TYPES, "heat"),
+        (COOL_TYPES, "cool"),
+        ([{"0": 1, "1": 1, "2": 2}], "range"),
+        # Auto of no schedules: the unit has a schedule it doesn't say.
+        ([{"0": 1, "1": 0, "2": 0}], "unknown"),
+    ],
+)
 async def test_no_schedule_is_an_empty_week_of_the_kind_the_unit_takes(hass, types, mode):
     b, p = backend(hass, server([], types=types))
     schedule = await b.async_read()
     p.stop()
     assert schedule == Schedule(mode, ((),) * 7)
-    assert schedule.writable
+    assert schedule.writable == (mode != "unknown")
 
 
 async def test_an_emptied_week_is_written_as_no_schedule(hass):

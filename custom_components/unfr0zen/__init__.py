@@ -27,6 +27,7 @@ from .const import (
     CONF_NAME,
     CONF_TRANSPORT,
     DOMAIN,
+    FRONTEND_URL,
     MATTER,
     NESTLOCAL,
     Z2M,
@@ -95,7 +96,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     from homeassistant.components.frontend import DATA_EXTRA_MODULE_URL, add_extra_js_url
     from homeassistant.components.http import StaticPathConfig
 
-    await hass.http.async_register_static_paths([StaticPathConfig(CARDS_URL, str(CARDS), False)])
+    # The folder: the cards fetch their locales beside them.
+    await hass.http.async_register_static_paths([StaticPathConfig(FRONTEND_URL, str(CARDS.parent), False)])
     # Without the frontend there is nothing to load them into.
     if DATA_EXTRA_MODULE_URL in hass.data:
         version = (await async_get_integration(hass, DOMAIN)).version

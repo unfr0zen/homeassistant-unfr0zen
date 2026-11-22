@@ -115,3 +115,22 @@ def test_a_day_holds_at_most_ten_setpoints():
 
 def test_writes_only_the_named_days():
     assert days_json({4: (Setpoint(390, 20.5),), 6: ()}) == {"fri": [{"time": "06:30", "temp": 20.5}], "sun": []}
+
+
+def test_a_range_title_is_a_low_and_a_high_each_with_its_sign():
+    event = {"dtstart": dt.datetime(2026, 11, 23, 6, 30, tzinfo=ZoneInfo("UTC")), "rrule": "FREQ=WEEKLY"}
+    tz = ZoneInfo("UTC")
+    assert parse_event(event | {"summary": "19-24 °C"}, tz, mode="range")[1] == Setpoint(390, 19.0, 24.0)
+    assert parse_event(event | {"summary": "18,5 – 25"}, tz, mode="range")[1] == Setpoint(390, 18.5, 25.0)  # noqa: RUF001
+    with pytest.raises(HomeAssistantError, match="outside"):
+        parse_event(event | {"summary": "-10–20 °C"}, tz, mode="range")  # noqa: RUF001
+    with pytest.raises(HomeAssistantError, match="outside"):
+        parse_event(event | {"summary": "-5 °C"}, tz)
+
+
+def test_an_error_takes_a_placeholder_named_key():
+    from custom_components.unfr0zen.errors import error
+
+    assert str(error("z2m_nothing", key="heating_times", topic="zigbee2mqtt/Hallway")) == (
+        "Zigbee2MQTT sent no heating_times for zigbee2mqtt/Hallway"
+    )

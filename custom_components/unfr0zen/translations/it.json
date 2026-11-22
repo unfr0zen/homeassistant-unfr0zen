@@ -1,0 +1,247 @@
+{
+  "config": {
+    "flow_title": "{base}",
+    "step": {
+      "user": {
+        "title": "Come Home Assistant raggiunge il Nest",
+        "menu_options": {
+          "nestlocal": "MQTT",
+          "zigbee2mqtt": "Zigbee2MQTT",
+          "zha": "ZHA",
+          "matter": "Matter"
+        }
+      },
+      "confirm": {
+        "description": "Aggiungere la programmazione che nestlocal pubblica su {base}?"
+      },
+      "nestlocal": {
+        "data": {
+          "base": "Argomento"
+        },
+        "data_description": {
+          "base": "Il prefisso di nestlocal e il numero di serie dell'unità, come nestlocal/02AA01AC123456AB"
+        }
+      },
+      "zigbee2mqtt": {
+        "data": {
+          "base": "Argomento base di Zigbee2MQTT"
+        }
+      },
+      "zigbee2mqtt_device": {
+        "data": {
+          "friendly_name": "Termostato"
+        }
+      },
+      "zha": {
+        "data": {
+          "device_id": "Termostato"
+        }
+      },
+      "matter": {
+        "data": {
+          "device_id": "Termostato"
+        }
+      }
+    },
+    "error": {
+      "no_schedule": "Nessun heating_times su quell'argomento: controlla il prefisso e il numero di serie",
+      "no_device": "Zigbee2MQTT non elenca alcun Nest con unfr0zen sotto quell'argomento base"
+    },
+    "abort": {
+      "already_configured": "La programmazione di questo Nest è già stata aggiunta",
+      "mqtt_not_ready": "MQTT non è configurato in Home Assistant",
+      "no_device": "Nessun Nest con unfr0zen in quell'integrazione",
+      "not_a_schedule": "Quell'argomento non contiene alcuna programmazione"
+    }
+  },
+  "entity": {
+    "calendar": {
+      "schedule": {
+        "name": "Programmazione riscaldamento"
+      },
+      "hot_water": {
+        "name": "Programmazione acqua calda"
+      }
+    }
+  },
+  "services": {
+    "set_schedule": {
+      "name": "Imposta programmazione",
+      "description": "Sostituisce i giorni indicati della programmazione del riscaldamento del Nest, ogni giorno per intero.",
+      "fields": {
+        "days": {
+          "name": "Giorni",
+          "description": "Per giorno (da mon a sun), un elenco di setpoint, ciascuno con un orario (HH:MM) e una temperatura in °C. I giorni non indicati mantengono i propri."
+        }
+      }
+    },
+    "set_hot_water_schedule": {
+      "name": "Imposta programmazione acqua calda",
+      "description": "Sostituisce i giorni indicati della programmazione dell'acqua calda del Nest, ogni giorno per intero.",
+      "fields": {
+        "days": {
+          "name": "Giorni",
+          "description": "Per giorno (da mon a sun), un elenco di periodi di accensione, ciascuno con un orario di accensione e uno di spegnimento (HH:MM); uno spegnimento prima della sua accensione prosegue oltre la mezzanotte. I giorni non indicati mantengono i propri."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "hot_water_calendar": {
+      "message": "{entity_id} è un calendario dell'acqua calda: usa unfr0zen.set_hot_water_schedule"
+    },
+    "heating_calendar": {
+      "message": "{entity_id} è un calendario del riscaldamento: usa unfr0zen.set_schedule"
+    },
+    "not_writable": {
+      "message": "Questa programmazione del Nest ({mode}) non può essere modificata da Home Assistant"
+    },
+    "mqtt_nothing": {
+      "message": "Niente su {topic}"
+    },
+    "mqtt_not_taken_schedule": {
+      "message": "Il Nest non ha accettato la programmazione: vedi il registro di nestlocal"
+    },
+    "mqtt_not_taken_hot_water": {
+      "message": "Il Nest non ha accettato la programmazione dell'acqua calda: vedi il registro di nestlocal"
+    },
+    "z2m_nothing": {
+      "message": "Zigbee2MQTT non ha inviato alcun {key} per {topic}"
+    },
+    "z2m_not_taken_schedule": {
+      "message": "Il Nest non ha accettato la programmazione tramite Zigbee2MQTT"
+    },
+    "z2m_not_taken_hot_water": {
+      "message": "Il Nest non ha accettato la programmazione dell'acqua calda tramite Zigbee2MQTT"
+    },
+    "too_many_periods": {
+      "message": "Il Nest accetta al massimo {max} periodi di acqua calda al giorno"
+    },
+    "periods_overlap": {
+      "message": "I periodi di acqua calda si sovrappongono: {day} alle {time}"
+    },
+    "period_times": {
+      "message": "{day}: accensione e spegnimento devono essere HH:MM, non {entry}"
+    },
+    "period_empty": {
+      "message": "{day} {time}: un periodo si spegne dopo essersi acceso"
+    },
+    "no_period": {
+      "message": "Nessun periodo di acqua calda {uid} nella programmazione"
+    },
+    "period_whole_days": {
+      "message": "Un periodo di acqua calda richiede orari di inizio e fine, non giorni interi"
+    },
+    "period_whole_minutes": {
+      "message": "Un periodo di acqua calda inizia e finisce su minuti interi"
+    },
+    "period_order": {
+      "message": "Un periodo di acqua calda finisce dopo il suo inizio, entro lo stesso giorno"
+    },
+    "matter_no_node": {
+      "message": "Matter non ha alcun nodo per il dispositivo {device}: {error}"
+    },
+    "changed_while_editing_schedule": {
+      "message": "La programmazione del Nest è cambiata durante la modifica: riprova"
+    },
+    "changed_while_editing_hot_water": {
+      "message": "La programmazione dell'acqua calda del Nest è cambiata durante la modifica: riprova"
+    },
+    "matter_not_taken_schedule": {
+      "message": "Il Nest non ha accettato la programmazione"
+    },
+    "matter_not_taken_hot_water": {
+      "message": "Il Nest non ha accettato la programmazione dell'acqua calda"
+    },
+    "matter_no_water_heater": {
+      "message": "Il dispositivo Matter {device} non ha uno scaldacqua"
+    },
+    "matter_no_endpoint": {
+      "message": "Il server Matter non ha l'endpoint {endpoint} del Nest: reinterrogalo"
+    },
+    "nestlocal_too_old": {
+      "message": "nestlocal è troppo vecchio per la programmazione Matter: aggiornalo"
+    },
+    "matter_failed": {
+      "message": "Matter: {error}"
+    },
+    "begin_no_answer": {
+      "message": "Il Nest non ha risposto alla richiesta di avviare la scrittura della programmazione"
+    },
+    "begin_refused": {
+      "message": "Il Nest ha rifiutato di avviare la scrittura della programmazione: {status}"
+    },
+    "commit_no_answer": {
+      "message": "Il Nest non ha risposto alla richiesta di confermare la programmazione"
+    },
+    "commit_refused": {
+      "message": "Il Nest ha rifiutato di confermare la programmazione: {status}"
+    },
+    "temp_outside": {
+      "message": "{temp} °C è fuori da {min}-{max} °C"
+    },
+    "range_gap": {
+      "message": "{low}-{high} °C: la massima deve superare la minima di {gap} °C o più"
+    },
+    "days_object": {
+      "message": "days deve essere un oggetto come {example}"
+    },
+    "unknown_day": {
+      "message": "Giorno sconosciuto {day}: usa {days}"
+    },
+    "day_list": {
+      "message": "{day} deve essere un elenco come {example}"
+    },
+    "not_a_number": {
+      "message": "{day} {time}: {field} {value} non è un numero"
+    },
+    "bad_time": {
+      "message": "{day}: l'orario {value} non è HH:MM"
+    },
+    "two_setpoints": {
+      "message": "{day}: due setpoint alle {time}"
+    },
+    "too_many_setpoints": {
+      "message": "Il Nest accetta al massimo {max} setpoint al giorno"
+    },
+    "no_setpoint": {
+      "message": "Nessun setpoint {uid} nella programmazione"
+    },
+    "setpoint_whole_day": {
+      "message": "Un setpoint richiede un orario di inizio, non un giorno intero"
+    },
+    "setpoint_whole_minute": {
+      "message": "Un setpoint inizia su un minuto intero"
+    },
+    "title_range": {
+      "message": "Dai all'evento il nome della sua minima e massima, come 19-24 °C"
+    },
+    "title_temp": {
+      "message": "Dai all'evento il nome della sua temperatura, come 20.5 °C"
+    },
+    "weekly_only": {
+      "message": "La programmazione del Nest si ripete ogni settimana: fai ripetere l'evento settimanalmente, senza fine"
+    },
+    "unknown_repeat_day": {
+      "message": "Giorno sconosciuto {day} nella ripetizione dell'evento"
+    },
+    "zha_no_cluster": {
+      "message": "ZHA non ha il cluster {cluster} per {ieee}: {error}"
+    },
+    "zha_get_refused": {
+      "message": "Il Nest ha rifiutato Get Weekly Schedule: {response}"
+    },
+    "zha_set_refused": {
+      "message": "Il Nest ha rifiutato Set Weekly Schedule: {status}"
+    },
+    "zha_hot_water_read": {
+      "message": "Il Nest non ha letto la sua acqua calda per il giorno {day}: {response}"
+    },
+    "zha_hot_water_refused": {
+      "message": "Il Nest ha rifiutato i periodi di acqua calda {periods}: {status}"
+    },
+    "zha_mixed_week": {
+      "message": "La programmazione del Nest è cambiata durante la lettura: riprova"
+    }
+  }
+}

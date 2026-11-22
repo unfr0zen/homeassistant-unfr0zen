@@ -18,6 +18,7 @@ from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.event import async_track_time_interval
 
 from .backend import MODE_COOL, MODE_HEAT, Backend, HotWaterBackend, day_bit, mode_bits, mode_name, transitions
+from .errors import error
 from .hotwater import HotWater, Periods, from_text, to_text
 from .schedule import Day, Schedule
 
@@ -47,26 +48,34 @@ class ZhaBackend(Backend):
             device = get_zha_gateway(self.hass).devices[EUI64.convert(self.ieee)]
             return device.device.endpoints[ENDPOINT].in_clusters[cluster_id]
         except (ImportError, KeyError, AttributeError, ValueError) as err:
-            raise HomeAssistantError(f"ZHA has no cluster 0x{cluster_id:04X} for {self.ieee}: {err!r}") from err
+            raise error("zha_no_cluster", cluster=f"0x{cluster_id:04X}", ieee=self.ieee, error=repr(err)) from err
 
     async def async_read(self) -> Schedule:
         cluster = self._cluster()
-        mode, week = "heat", []
+        modes, week = set(), []
         # The unit answers for one day per request.
         for day in range(7):
             rsp = await cluster.get_weekly_schedule(days_to_return=day_bit(day), mode_to_return=MODE_HEAT | MODE_COOL)
             if not hasattr(rsp, "values"):
-                raise HomeAssistantError(f"The Nest refused Get Weekly Schedule: {rsp}")
+                raise error("zha_get_refused", response=rsp)
             bits = int(rsp.mode_for_sequence)
-            mode = mode_name(bits)
+            modes.add(mode_name(bits))
             week.append(_decode(int(rsp.num_transitions_for_sequence), bits, list(rsp.values)))
-        return Schedule(mode, tuple(week))
+        # Days of different kinds: the Nest changed mode between requests.
+        if len(modes) > 1:
+            raise error("zha_mixed_week")
+        return Schedule(modes.pop(), tuple(week))
 
     async def async_write(self, schedule: Schedule, days: dict[int, Day]) -> None:
         cluster = self._cluster()
         bits = mode_bits(schedule.mode)
         for day, points in sorted(days.items()):
-            values = [v for p in points for v in (p.minute, round(p.temp * 100))]
+            # A range's low (heating) then high (cooling); the others' one.
+            values = [
+                v
+                for p in points
+                for v in (p.minute, round(p.temp * 100), *(() if p.high is None else (round(p.high * 100),)))
+            ]
             rsp = await cluster.set_weekly_schedule(
                 num_transitions_for_sequence=len(points),
                 day_of_week_for_sequence=day_bit(day),
@@ -75,7 +84,7 @@ class ZhaBackend(Backend):
             )
             status = getattr(rsp, "status", 0)
             if int(status) != 0:
-                raise HomeAssistantError(f"The Nest refused Set Weekly Schedule: {status}")
+                raise error("zha_set_refused", status=status)
 
 
 def _decode(count: int, bits: int, values: list[int]) -> Day:
@@ -160,7 +169,7 @@ class ZhaHotWater(ZhaBackend, HotWaterBackend):
             )
             records = getattr(rsp, "status_records", None)
             if not records or records[0].status != foundation.Status.SUCCESS:
-                raise HomeAssistantError(f"The Nest did not read its hot water for day {day}: {rsp}")
+                raise error("zha_hot_water_read", day=day, response=rsp)
             days.append(from_text(str(records[0].value.value)))
         self.latest = HotWater(tuple(days))
         return self.latest
@@ -177,7 +186,7 @@ class ZhaHotWater(ZhaBackend, HotWaterBackend):
             records = getattr(rsp, "status_records", None)
             statuses = [r.status for r in records] if records is not None else [getattr(rsp, "status", None)]
             if any(s != foundation.Status.SUCCESS for s in statuses):
-                raise HomeAssistantError(f"The Nest refused the hot water periods {text!r}: {statuses[0]}")
+                raise error("zha_hot_water_refused", periods=repr(text), status=statuses[0])
 
         async def replace(week: dict[int, Periods]) -> None:
             # The unit checks each day against its whole week, so a period

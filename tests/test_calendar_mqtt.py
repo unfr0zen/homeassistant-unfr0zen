@@ -200,22 +200,26 @@ async def test_a_change_without_the_written_days_does_not_complete_a_write(hass,
     assert "did not take" in reply["error"]["message"]
 
 
-async def test_a_range_schedule_is_read_only(hass, calendar, hass_ws_client):
-    async_fire_mqtt_message(hass, f"{BASE}/heating_times", json.dumps(week(mode="range")))
+async def test_a_range_schedule_has_lows_and_highs(hass, calendar, hass_ws_client):
+    async_fire_mqtt_message(hass, f"{BASE}/heating_times", json.dumps(week(mode="range", mon=[("06:30", (19, 24))])))
     await hass.async_block_till_done()
+    state = hass.states.get(ENTITY)
+    assert state.attributes["message"] == "19–24 °C"  # noqa: RUF001
+    assert state.attributes["week"]["mon"] == [{"time": "06:30", "low": 19.0, "high": 24.0}]
+    answer_writes(hass, calendar, week(mode="range", mon=[("06:30", (19, 24))]))
     client = await hass_ws_client(hass)
+    event = {"dtstart": "2026-11-23T18:30:00+00:00", "dtend": "2026-11-23T19:00:00+00:00", "rrule": "FREQ=WEEKLY"}
     await client.send_json_auto_id(
-        {
-            "type": "calendar/event/create",
-            "entity_id": ENTITY,
-            "event": {
-                "summary": "20",
-                "dtstart": "2026-11-23T18:30:00+00:00",
-                "dtend": "2026-11-23T19:00:00+00:00",
-                "rrule": "FREQ=WEEKLY",
-            },
-        }
+        {"type": "calendar/event/create", "entity_id": ENTITY, "event": event | {"summary": "18-25 °C"}}
     )
-    reply = await client.receive_json()
-    assert not reply["success"]
-    assert "range" in reply["error"]["message"]
+    assert (await client.receive_json())["success"]
+    assert written(calendar) == [
+        {"mon": [{"time": "06:30", "low": 19.0, "high": 24.0}, {"time": "18:30", "low": 18.0, "high": 25.0}]}
+    ]
+    for title, message in [("20 °C", "low and high"), ("20-21 °C", "1.5 °C or more")]:
+        await client.send_json_auto_id(
+            {"type": "calendar/event/create", "entity_id": ENTITY, "event": event | {"summary": title}}
+        )
+        reply = await client.receive_json()
+        assert not reply["success"]
+        assert message in reply["error"]["message"], title

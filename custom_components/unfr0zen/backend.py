@@ -57,20 +57,29 @@ def day_bit(day: int) -> int:
 
 
 def mode_bits(mode: str) -> int:
-    """The setpoint a heat or cool schedule's transitions carry."""
-    return MODE_COOL if mode == "cool" else MODE_HEAT
+    """The setpoints a schedule's transitions carry: a range's both, its low
+    the heating setpoint and its high the cooling one."""
+    return {"cool": MODE_COOL, "range": MODE_HEAT | MODE_COOL}.get(mode, MODE_HEAT)
 
 
 def mode_name(bits: int) -> str:
-    """A transition mode bitmap as the schedule's kind."""
-    return {MODE_HEAT: "heat", MODE_COOL: "cool"}.get(bits & (MODE_HEAT | MODE_COOL), "range")
+    """A transition mode bitmap as the schedule's kind: both are a range's."""
+    return {MODE_HEAT: "heat", MODE_COOL: "cool", MODE_HEAT | MODE_COOL: "range"}.get(
+        bits & (MODE_HEAT | MODE_COOL), "unknown"
+    )
 
 
 def transitions(mode: int, points: list[tuple[int, int | None, int | None]]) -> Day:
     """Setpoints from (minutes, heat, cool) transitions in 0.01 °C."""
+    # As reported, to the hundredth: a rounded bound could break a range's gap.
+    half = lambda value: value / 100  # noqa: E731
     out = []
     for minute, heat, cool in points:
+        if mode == MODE_HEAT | MODE_COOL:
+            if heat is not None and cool is not None:
+                out.append(Setpoint(minute, half(heat), half(cool)))
+            continue
         value = heat if mode == MODE_HEAT else cool if mode == MODE_COOL else None
         if value is not None:
-            out.append(Setpoint(minute, round(value / 50) / 2))
+            out.append(Setpoint(minute, half(value)))
     return tuple(sorted(out))

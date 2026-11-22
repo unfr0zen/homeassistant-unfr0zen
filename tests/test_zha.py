@@ -16,16 +16,18 @@ RESPONSE = Thermostat.ClientCommandDefs.get_weekly_schedule_response
 DEFAULT = GENERAL_COMMANDS[GeneralCommand.Default_Response].schema
 
 
-def cluster_answering(days):
-    """A cluster whose Get Weekly Schedule answers from `days` by day bit."""
+def cluster_answering(days, mode=0x01):
+    """A cluster whose Get Weekly Schedule answers from `days` by day bit,
+    with the setpoints `mode` has."""
     cluster = MagicMock()
+    width = 1 + bin(mode).count("1")
 
     async def get(days_to_return, mode_to_return):
         values = days.get(int(days_to_return), [])
         return RESPONSE.schema(
-            num_transitions_for_sequence=len(values) // 2,
+            num_transitions_for_sequence=len(values) // width,
             day_of_week_for_sequence=days_to_return,
-            mode_for_sequence=0x01,
+            mode_for_sequence=mode,
             values=values,
         )
 
@@ -95,3 +97,43 @@ async def test_a_refused_write_fails(hass):
 async def test_without_zha_the_cluster_is_an_error(hass):
     with pytest.raises(HomeAssistantError, match="ZHA has no cluster 0x0201"):
         ZhaBackend(hass, "00:12:4b:00:12:34:56:78")._cluster()
+
+
+async def test_a_range_schedule_carries_both_setpoints(hass):
+    # Monday 06:30, heating 19 °C (the low), cooling 24 °C (the high).
+    cluster = cluster_answering({0x02: [390, 1900, 2400]}, mode=0x03)
+    backend = ZhaBackend(hass, "x")
+    with patch.object(ZhaBackend, "_cluster", return_value=cluster):
+        schedule = await backend.async_read()
+        await backend.async_write(schedule, {1: (Setpoint(420, 18.5, 25.0),)})
+    assert (schedule.mode, schedule.days[0]) == ("range", (Setpoint(390, 19.0, 24.0),))
+    assert cluster.set_weekly_schedule.call_args.kwargs | {} == {
+        "num_transitions_for_sequence": 1,
+        "day_of_week_for_sequence": 0x04,
+        "mode_for_sequence": 0x03,
+        "values": [420, 1850, 2500],
+    }
+
+
+async def test_a_range_keeps_its_bounds_to_the_hundredth(hass):
+    cluster = cluster_answering({0x02: [390, 1875, 2025]}, mode=0x03)
+    with patch.object(ZhaBackend, "_cluster", return_value=cluster):
+        schedule = await ZhaBackend(hass, "x").async_read()
+    assert schedule.days[0] == (Setpoint(390, 18.75, 20.25),)
+
+
+async def test_a_week_of_days_of_different_kinds_is_an_error(hass):
+    # Monday answers as heat, the rest as heat-cool: the mode changed between requests.
+    cluster = cluster_answering({0x02: [390, 2000]}, mode=0x03)
+    answer = cluster.get_weekly_schedule.side_effect
+
+    async def get(days_to_return, mode_to_return):
+        rsp = await answer(days_to_return, mode_to_return)
+        if int(days_to_return) == 0x02:
+            rsp.mode_for_sequence = 0x01
+            rsp.num_transitions_for_sequence = 1
+        return rsp
+
+    cluster.get_weekly_schedule.side_effect = get
+    with patch.object(ZhaBackend, "_cluster", return_value=cluster), pytest.raises(HomeAssistantError, match="changed"):
+        await ZhaBackend(hass, "x").async_read()

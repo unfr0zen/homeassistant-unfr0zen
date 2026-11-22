@@ -1,0 +1,247 @@
+{
+  "config": {
+    "flow_title": "{base}",
+    "step": {
+      "user": {
+        "title": "Hur Home Assistant når Nest",
+        "menu_options": {
+          "nestlocal": "MQTT",
+          "zigbee2mqtt": "Zigbee2MQTT",
+          "zha": "ZHA",
+          "matter": "Matter"
+        }
+      },
+      "confirm": {
+        "description": "Lägga till schemat som nestlocal publicerar på {base}?"
+      },
+      "nestlocal": {
+        "data": {
+          "base": "Ämne"
+        },
+        "data_description": {
+          "base": "Prefix för nestlocal och enhetens serienummer, till exempel nestlocal/02AA01AC123456AB"
+        }
+      },
+      "zigbee2mqtt": {
+        "data": {
+          "base": "Basämne för Zigbee2MQTT"
+        }
+      },
+      "zigbee2mqtt_device": {
+        "data": {
+          "friendly_name": "Termostat"
+        }
+      },
+      "zha": {
+        "data": {
+          "device_id": "Termostat"
+        }
+      },
+      "matter": {
+        "data": {
+          "device_id": "Termostat"
+        }
+      }
+    },
+    "error": {
+      "no_schedule": "Inget heating_times på det ämnet: kontrollera prefix och serienummer",
+      "no_device": "Zigbee2MQTT listar ingen Nest med unfr0zen under det basämnet"
+    },
+    "abort": {
+      "already_configured": "Schemat för den här Nest är redan tillagt",
+      "mqtt_not_ready": "MQTT är inte konfigurerat i Home Assistant",
+      "no_device": "Ingen Nest med unfr0zen i den integrationen",
+      "not_a_schedule": "Det ämnet innehåller inget schema"
+    }
+  },
+  "entity": {
+    "calendar": {
+      "schedule": {
+        "name": "Värmeschema"
+      },
+      "hot_water": {
+        "name": "Varmvattenschema"
+      }
+    }
+  },
+  "services": {
+    "set_schedule": {
+      "name": "Ange schema",
+      "description": "Ersätter de angivna dagarna i värmeschemat för Nest, varje dag i sin helhet.",
+      "fields": {
+        "days": {
+          "name": "Dagar",
+          "description": "Per dag (mon till sun) en lista med börvärden, vart och ett med en tid (HH:MM) och en temperatur i °C. Dagar som inte anges behåller sina."
+        }
+      }
+    },
+    "set_hot_water_schedule": {
+      "name": "Ange varmvattenschema",
+      "description": "Ersätter de angivna dagarna i varmvattenschemat för Nest, varje dag i sin helhet.",
+      "fields": {
+        "days": {
+          "name": "Dagar",
+          "description": "Per dag (mon till sun) en lista med på-perioder, var och en med en på- och en av-tid (HH:MM); en av-tid före sin på-tid går över midnatt. Dagar som inte anges behåller sina."
+        }
+      }
+    }
+  },
+  "exceptions": {
+    "hot_water_calendar": {
+      "message": "{entity_id} är en varmvattenkalender: använd unfr0zen.set_hot_water_schedule"
+    },
+    "heating_calendar": {
+      "message": "{entity_id} är en värmekalender: använd unfr0zen.set_schedule"
+    },
+    "not_writable": {
+      "message": "Det här Nest-schemat ({mode}) kan inte ändras från Home Assistant"
+    },
+    "mqtt_nothing": {
+      "message": "Inget på {topic}"
+    },
+    "mqtt_not_taken_schedule": {
+      "message": "Nest tog inte emot schemat: se loggen för nestlocal"
+    },
+    "mqtt_not_taken_hot_water": {
+      "message": "Nest tog inte emot varmvattenschemat: se loggen för nestlocal"
+    },
+    "z2m_nothing": {
+      "message": "Zigbee2MQTT skickade ingen {key} för {topic}"
+    },
+    "z2m_not_taken_schedule": {
+      "message": "Nest tog inte emot schemat via Zigbee2MQTT"
+    },
+    "z2m_not_taken_hot_water": {
+      "message": "Nest tog inte emot varmvattenschemat via Zigbee2MQTT"
+    },
+    "too_many_periods": {
+      "message": "Nest tar högst {max} varmvattenperioder per dag"
+    },
+    "periods_overlap": {
+      "message": "Varmvattenperioder överlappar på {day} kl. {time}"
+    },
+    "period_times": {
+      "message": "{day}: på och av måste vara HH:MM, inte {entry}"
+    },
+    "period_empty": {
+      "message": "{day} {time}: en period stängs av efter att den slås på"
+    },
+    "no_period": {
+      "message": "Ingen varmvattenperiod {uid} i schemat"
+    },
+    "period_whole_days": {
+      "message": "En varmvattenperiod behöver start- och sluttider, inte hela dagar"
+    },
+    "period_whole_minutes": {
+      "message": "En varmvattenperiod börjar och slutar på hela minuter"
+    },
+    "period_order": {
+      "message": "En varmvattenperiod slutar efter att den börjar, inom en dag"
+    },
+    "matter_no_node": {
+      "message": "Matter har ingen nod för enheten {device}: {error}"
+    },
+    "changed_while_editing_schedule": {
+      "message": "Schemat för Nest ändrades medan det redigerades: försök igen"
+    },
+    "changed_while_editing_hot_water": {
+      "message": "Varmvattenschemat för Nest ändrades medan det redigerades: försök igen"
+    },
+    "matter_not_taken_schedule": {
+      "message": "Nest tog inte emot schemat"
+    },
+    "matter_not_taken_hot_water": {
+      "message": "Nest tog inte emot varmvattenschemat"
+    },
+    "matter_no_water_heater": {
+      "message": "Matter-enheten {device} har ingen varmvattenberedare"
+    },
+    "matter_no_endpoint": {
+      "message": "Matter-servern har ingen slutpunkt {endpoint} för Nest: intervjua om enheten"
+    },
+    "nestlocal_too_old": {
+      "message": "nestlocal är för gammal för Matter-schemat: uppdatera den"
+    },
+    "matter_failed": {
+      "message": "Matter: {error}"
+    },
+    "begin_no_answer": {
+      "message": "Nest svarade inte på begäran om att börja skriva schemat"
+    },
+    "begin_refused": {
+      "message": "Nest vägrade börja skriva schemat: {status}"
+    },
+    "commit_no_answer": {
+      "message": "Nest svarade inte på begäran om att bekräfta schemat"
+    },
+    "commit_refused": {
+      "message": "Nest vägrade bekräfta schemat: {status}"
+    },
+    "temp_outside": {
+      "message": "{temp} °C ligger utanför {min}-{max} °C"
+    },
+    "range_gap": {
+      "message": "{low}-{high} °C: det höga värdet måste vara minst {gap} °C över det låga"
+    },
+    "days_object": {
+      "message": "days måste vara ett objekt, till exempel {example}"
+    },
+    "unknown_day": {
+      "message": "Okänd dag {day}: använd {days}"
+    },
+    "day_list": {
+      "message": "{day} måste vara en lista, till exempel {example}"
+    },
+    "not_a_number": {
+      "message": "{day} {time}: {field} {value} är inte ett tal"
+    },
+    "bad_time": {
+      "message": "{day}: tiden {value} är inte HH:MM"
+    },
+    "two_setpoints": {
+      "message": "{day}: två börvärden kl. {time}"
+    },
+    "too_many_setpoints": {
+      "message": "Nest tar högst {max} börvärden per dag"
+    },
+    "no_setpoint": {
+      "message": "Inget börvärde {uid} i schemat"
+    },
+    "setpoint_whole_day": {
+      "message": "Ett börvärde behöver en starttid, inte en hel dag"
+    },
+    "setpoint_whole_minute": {
+      "message": "Ett börvärde börjar på en hel minut"
+    },
+    "title_range": {
+      "message": "Namnge händelsen efter dess låga och höga värde, till exempel 19-24 °C"
+    },
+    "title_temp": {
+      "message": "Namnge händelsen efter dess temperatur, till exempel 20.5 °C"
+    },
+    "weekly_only": {
+      "message": "Schemat för Nest upprepas varje vecka: låt händelsen upprepas varje vecka, utan slut"
+    },
+    "unknown_repeat_day": {
+      "message": "Okänd dag {day} i händelsens upprepning"
+    },
+    "zha_no_cluster": {
+      "message": "ZHA har inget kluster {cluster} för {ieee}: {error}"
+    },
+    "zha_get_refused": {
+      "message": "Nest vägrade Get Weekly Schedule: {response}"
+    },
+    "zha_set_refused": {
+      "message": "Nest vägrade Set Weekly Schedule: {status}"
+    },
+    "zha_hot_water_read": {
+      "message": "Nest läste inte sitt varmvatten för dag {day}: {response}"
+    },
+    "zha_hot_water_refused": {
+      "message": "Nest vägrade varmvattenperioderna {periods}: {status}"
+    },
+    "zha_mixed_week": {
+      "message": "Nests schema ändrades medan det lästes: försök igen"
+    }
+  }
+}
