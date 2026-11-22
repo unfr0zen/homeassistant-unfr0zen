@@ -186,18 +186,26 @@ function hotWaterNow(spans, now) {
 
 const STYLES = `
   :host {
-    --u0-warm: #c9784b;
-    --u0-cool: color-mix(in srgb, #7a5a4c 34%, var(--u0-card));
+    /* Home Assistant's own state colours: heating, and hot water as its
+       water heater shows following the schedule and boosting. */
+    --u0-warm: var(--state-climate-heat-color, #ff6f22);
+    --u0-cool: color-mix(in srgb, var(--u0-warm) 22%, var(--u0-card));
     --u0-track: color-mix(in srgb, var(--primary-text-color, #e1e1e1) 7%, var(--u0-card));
     --u0-raised: color-mix(in srgb, var(--primary-text-color, #e1e1e1) 6%, var(--u0-card));
     --u0-line: color-mix(in srgb, var(--primary-text-color, #e1e1e1) 14%, transparent);
-    --u0-water: #3f7fd6;
-    --u0-on: #2f8452;
+    --u0-water: var(--state-water_heater-eco-color, #4caf50);
+    --u0-on: var(--state-water_heater-eco-color, #4caf50);
+    --u0-boost: var(--state-water_heater-high_demand-color, #ff6f22);
     --u0-card: var(--ha-card-background, var(--card-background-color, #1c1c1e));
     --u0-text: var(--primary-text-color, #e1e1e1);
     --u0-muted: var(--secondary-text-color, #9b9b9b);
     --u0-radius: 14px;
     display: block;
+  }
+  /* A cooling schedule in the cooling colour. */
+  :host(.cooling) {
+    --u0-warm: var(--state-climate-cool-color, #2196f3);
+    --u0-cool: color-mix(in srgb, var(--u0-warm) 22%, var(--u0-card));
   }
   ha-card, .panel {
     background: var(--u0-card);
@@ -220,7 +228,7 @@ const STYLES = `
   .controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
   .boost-wrap { position: relative; }
   .pill.boost { font-size: 0.95rem; padding: 8px 14px; }
-  .pill.boost.active { background: var(--u0-warm); color: #fff; }
+  .pill.boost.active { background: var(--u0-boost); color: #fff; }
   .menu {
     position: absolute; right: 0; top: calc(100% + 6px); z-index: 5; min-width: 140px; padding: 6px;
     background: var(--u0-card); border: 1px solid var(--u0-line); border-radius: 14px;
@@ -285,7 +293,7 @@ const STYLES = `
     /* An opaque surface, as Home Assistant's dialogs have: a theme's cards
        may be see-through. The colours mixed from the card follow it. */
     --u0-card: var(--ha-dialog-surface-background, var(--mdc-theme-surface, var(--primary-background-color, #1c1c1e)));
-    --u0-cool: color-mix(in srgb, #7a5a4c 34%, var(--u0-card));
+    --u0-cool: color-mix(in srgb, var(--u0-warm) 22%, var(--u0-card));
     --u0-track: color-mix(in srgb, var(--primary-text-color, #e1e1e1) 7%, var(--u0-card));
     --u0-raised: color-mix(in srgb, var(--primary-text-color, #e1e1e1) 6%, var(--u0-card));
     padding: 18px; box-shadow: 0 10px 40px rgba(0,0,0,.4);
@@ -448,6 +456,7 @@ class ScheduleCard extends HTMLElement {
       card.innerHTML = `<div class="warning">Entity not found: ${escapeHtml(this._config.entity)}</div>`;
       return;
     }
+    this.classList.toggle("cooling", state.attributes.mode === "cool");
     card.innerHTML = this._cardHtml(state);
   }
 
