@@ -18,16 +18,18 @@
 </div>
 
 A Nest Learning Thermostat freed by [unfr0zen](https://github.com/unfr0zen/unfr0zen) keeps running its own weekly
-schedule. This integration puts that schedule in Home Assistant's calendar: read it, add, move or remove a change, and
-the Nest takes it, over whichever way Home Assistant reaches it.
+schedule. This integration puts that schedule in Home Assistant, as calendars and as dashboard cards: read it, add, move
+or remove a change, and the Nest takes it, over whichever way Home Assistant reaches it.
 
 <p align="center">
-  <img src="docs/images/calendar.png" alt="The Nest's heating schedule in Home Assistant's calendar" width="720">
+  <img src="docs/images/heating-card.png" alt="The heating card: the Nest's week of setpoints" width="400">
+  <img src="docs/images/hot-water-card.png" alt="The hot water card: the week's on periods, boost and on/off" width="400">
 </p>
 
 ## Features
 
 - 🗓️ **Heating schedule as a calendar.** Each setpoint is a weekly event, from its time until the next one.
+- 🎛️ **Dashboard cards** for the heating and the hot water: the whole week at a glance, edited a day at a time.
 - ✏️ **Edit from Home Assistant.** Create, move or delete events in the calendar panel, a card or an automation; the
   Nest takes the change and the calendar follows what the unit does.
 - 🚿 **Hot water schedule**, on a unit with hot water control (Heat Link), as its own calendar of on periods.
@@ -72,6 +74,10 @@ Add one entry per Nest. The calendars join the Nest's existing device.
 
 ## Using the calendars
 
+<p align="center">
+  <img src="docs/images/calendar.png" alt="The Nest's heating schedule in Home Assistant's calendar" width="640">
+</p>
+
 ### Heating
 
 - Each setpoint is an event repeating every week on its day, from its time until the next setpoint, titled with its
@@ -112,6 +118,45 @@ internal gateway; a Home Assistant release that changes those internals shows as
 protocol is in unfr0zen's [protocol reference](https://unfr0zen.com/protocols/).
 
 </details>
+
+## Dashboard cards
+
+Two cards come with the integration, in the card picker as **unfr0zen heating** and **unfr0zen hot water**:
+
+```yaml
+type: custom:unfr0zen-heating-card
+entity: calendar.nest_thermostat_schedule
+```
+
+```yaml
+type: custom:unfr0zen-hot-water-card
+entity: calendar.nest_thermostat_hot_water
+```
+
+- **Heating** shows the week's setpoints, the one in effect and the next, and the thermostat's target.
+- **Hot water** shows the week's on periods, whether hot water is on now and when it next comes on, with its boost and
+  its on/off switch.
+- **Edit schedule** opens a day at a time: change, add or remove setpoints or periods, copy a day to others, and save;
+  the Nest takes the days changed in one write.
+
+<p align="center">
+  <img src="docs/images/heating-editor.png" alt="Editing a day of the heating schedule" width="420">
+</p>
+
+The cards find the Nest's climate entity, hot water switch, boost and hot water sensor on its device. Set them yourself
+with `climate`, `switch`, `boost`, `active` or `water_heater` if they are elsewhere.
+
+Automations can do what the editor does with the `unfr0zen.set_schedule` and `unfr0zen.set_hot_water_schedule` actions,
+which replace the days they name:
+
+```yaml
+action: unfr0zen.set_schedule
+target:
+  entity_id: calendar.nest_thermostat_schedule
+data:
+  days:
+    sat: [{ time: "08:00", temp: 20.5 }, { time: "23:00", temp: 16 }]
+```
 
 ## Development
 
