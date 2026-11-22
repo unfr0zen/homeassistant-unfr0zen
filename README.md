@@ -1,42 +1,117 @@
-# unfr0zen Nest schedule
+<div align="center">
 
-A Home Assistant integration that shows an [unfr0zen](https://github.com/unfr0zen/unfr0zen) Nest's own weekly
-heating schedule as a calendar, and changes it from the calendar. The Nest keeps running its schedule: the calendar
-reads it and writes it back, whichever way Home Assistant reaches the unit.
+<img src="custom_components/unfr0zen/brand/icon@2x.png" alt="unfr0zen" width="128">
 
-## Install
+# unfr0zen for Home Assistant
 
-With HACS: add this repository as a custom repository (type Integration), install **unfr0zen Nest schedule**, restart
-Home Assistant. By hand: copy `custom_components/unfr0zen_schedule` into your configuration's `custom_components/`
-and restart.
+**Your Nest's own heating and hot water schedules, as Home Assistant calendars you can edit.**
 
-Then add it under **Settings → Devices & services → Add integration → unfr0zen Nest schedule** and pick how Home
-Assistant reaches the Nest. A unit publishing over MQTT is found on its own.
+[![HACS](https://img.shields.io/badge/HACS-Custom-41BDF5?logo=homeassistantcommunitystore&logoColor=white)](https://hacs.xyz/docs/faq/custom_repositories/)
+[![Release](https://img.shields.io/github/v/release/unfr0zen/homeassistant-unfr0zen?logo=github)](https://github.com/unfr0zen/homeassistant-unfr0zen/releases)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2026.10%2B-18BCF2?logo=homeassistant&logoColor=white)](https://www.home-assistant.io/)
+[![Validate](https://img.shields.io/github/actions/workflow/status/unfr0zen/homeassistant-unfr0zen/validate.yml?label=validate&logo=githubactions&logoColor=white)](https://github.com/unfr0zen/homeassistant-unfr0zen/actions/workflows/validate.yml)
+[![License](https://img.shields.io/github/license/unfr0zen/homeassistant-unfr0zen)](LICENSE)
 
-## Transports
+[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=unfr0zen&repository=homeassistant-unfr0zen&category=integration)
+[![Open your Home Assistant instance and start setting up unfr0zen.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=unfr0zen)
 
-| Transport | Reads | Writes | Needs |
-|-|-|-|-|
-| nestlocal's MQTT topics | `<prefix>/<serial>/heating_times`, as the unit publishes each change | `<prefix>/<serial>/set/heating_times` | the MQTT integration |
-| Zigbee2MQTT | the device's `heating_times`, asked for every 15 minutes | the device's `set` topic | the unfr0zen converter, the MQTT integration |
-| ZHA | Get Weekly Schedule, one day per request, every 15 minutes | Set Weekly Schedule, one day per command | ZHA |
-| Matter | GetWeeklySchedule, one day per request, every 15 minutes | SetWeeklySchedule, one day per command | the Matter integration |
+</div>
 
-The ZHA backend reaches the Thermostat cluster through ZHA's internal gateway, as ZHA offers no action that returns a
-command's answer; a Home Assistant release that changes those internals shows as an error naming the device.
+A Nest Learning Thermostat freed by [unfr0zen](https://github.com/unfr0zen/unfr0zen) keeps running its own weekly
+schedule. This integration puts that schedule in Home Assistant's calendar: read it, add, move or remove a change, and
+the Nest takes it, over whichever way Home Assistant reaches it.
 
-## The calendar
+<p align="center">
+  <img src="docs/images/calendar.png" alt="The Nest's heating schedule in Home Assistant's calendar" width="720">
+</p>
 
-- Each setpoint is an event that repeats every week on its day, from its time until the next setpoint, which may be
-  on a later day. Its title is the temperature, such as `20.5 °C`.
-- A new event must repeat weekly with no end (it may name several days): it adds a setpoint at its start time on each
-  of its days, at the temperature in its title. Its end time is ignored, as the next setpoint ends it.
-- Editing or deleting one occurrence changes the whole series: the Nest's schedule is the same every week.
-- Refused, with the reason: one-off events, other repeats (daily, every other week, a count or an end date), all-day
-  events, starts off a whole minute, temperatures outside 4.5-35 °C, more than 10 setpoints a day, and any change to a
-  heat-cool (range) schedule, which the calendar shows empty.
-- Temperatures are °C, in the Nest's half degrees.
-- Writing the schedule turns off the Nest's Auto-Schedule, or the unit would rewrite it.
+## Features
+
+- 🗓️ **Heating schedule as a calendar.** Each setpoint is a weekly event, from its time until the next one.
+- ✏️ **Edit from Home Assistant.** Create, move or delete events in the calendar panel, a card or an automation; the
+  Nest takes the change and the calendar follows what the unit does.
+- 🚿 **Hot water schedule**, on a unit with hot water control (Heat Link), as its own calendar of on periods.
+- 📡 **Every transport unfr0zen speaks:** nestlocal's MQTT topics, Zigbee2MQTT, ZHA and Matter.
+- 🔍 **Found on its own** when the Nest publishes over MQTT.
+- 🏠 **On the Nest's own device**, beside its climate and sensors; nothing in the cloud.
+
+## Requirements
+
+- Home Assistant 2026.10 or later.
+- A Nest set up with [unfr0zen](https://github.com/unfr0zen/unfr0zen), at a release with schedules, reached over one of:
+
+| Transport | Home Assistant needs | Heating | Hot water |
+|-|-|:-:|:-:|
+| nestlocal's MQTT topics | the MQTT integration | ✅ | ✅ |
+| Zigbee2MQTT | the MQTT integration, unfr0zen's converter | ✅ | ✅ |
+| ZHA | ZHA | ✅ | ✅ |
+| Matter (Wi-Fi or Thread) | the Matter integration | ✅ | ✅ |
+
+## Installation
+
+### HACS (recommended)
+
+1. Click **Open in HACS** above, or in HACS open the menu → **Custom repositories**, add
+   `https://github.com/unfr0zen/homeassistant-unfr0zen` as an **Integration**.
+2. Download **unfr0zen**, then restart Home Assistant.
+
+### Manual
+
+Copy `custom_components/unfr0zen` into your configuration's `custom_components/` folder and restart Home Assistant.
+
+## Setup
+
+Click **Add integration** above, or go to **Settings → Devices & services → Add integration → unfr0zen**, and pick how
+Home Assistant reaches the Nest. A Nest on MQTT shows up under **Discovered** by itself.
+
+<p align="center">
+  <img src="docs/images/add-device.png" alt="Choosing how Home Assistant reaches the Nest" width="480">
+</p>
+
+Add one entry per Nest. The calendars join the Nest's existing device.
+
+## Using the calendars
+
+### Heating
+
+- Each setpoint is an event repeating every week on its day, from its time until the next setpoint, titled with its
+  temperature, such as `20.5 °C`.
+- **Add a change:** a new event that repeats weekly with no end, at the time it should start, titled with the
+  temperature. It may repeat on several days; its end is ignored, as the next setpoint ends it.
+- **Edit or delete** one occurrence and the whole series changes: the Nest's schedule is the same every week.
+- Writing the schedule turns off the Nest's Auto-Schedule, so it doesn't learn over your changes.
+
+### Hot water
+
+- Each on period is an event repeating every week, from on to off; one may run past midnight.
+- Add, move or delete periods as for heating; the title is ignored.
+- The calendar only exists on a Nest with hot water control, and comes or goes with it.
+
+### Limits
+
+| | Heating | Hot water |
+|-|-|-|
+| Per day | 10 setpoints | 6 periods |
+| Temperatures | 4.5–35 °C (9–32 °C over Zigbee and Matter), in half degrees | — |
+| Refused | one-off events, other repeats, all-day events, a heat-cool (range) schedule | one-off events, other repeats, all-day events, overlapping periods |
+
+A refused change is reported with the reason and leaves the Nest's schedule as it was.
+
+<details>
+<summary><b>How each transport carries the schedule</b></summary>
+
+| Transport | Heating | Hot water |
+|-|-|-|
+| nestlocal MQTT | `<prefix>/<serial>/heating_times`, `set/heating_times` | `<prefix>/<serial>/hot_water_times`, `set/hot_water_times` |
+| Zigbee2MQTT | the device's `heating_times` (Set/Get Weekly Schedule) | the device's `hot_water_times` |
+| ZHA | Thermostat cluster Set/Get Weekly Schedule, one day per request | manufacturer cluster `0xFC01`, one attribute per day |
+| Matter | Thermostat cluster `Schedules` (Matter 1.4), written in an atomic write | the same, on the Nest's Water Heater endpoint |
+
+ZHA offers no action that returns a command's answer, so the ZHA backend reaches the Thermostat cluster through ZHA's
+internal gateway; a Home Assistant release that changes those internals shows as an error naming the device. The full
+protocol is in unfr0zen's [protocol reference](https://unfr0zen.com/protocols/).
+
+</details>
 
 ## Development
 
@@ -49,4 +124,4 @@ uv pip install -p .venv -r requirements_test.txt
 
 ## License
 
-GPL-3.0-or-later, as unfr0zen.
+[GPL-3.0-or-later](LICENSE), as unfr0zen.

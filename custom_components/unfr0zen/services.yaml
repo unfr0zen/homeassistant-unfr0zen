@@ -1,0 +1,23 @@
+set_schedule:
+  target:
+    entity:
+      integration: unfr0zen
+      domain: calendar
+  fields:
+    days:
+      required: true
+      example: '{"mon": [{"time": "06:30", "temp": 21}, {"time": "22:00", "temp": 17}]}'
+      selector:
+        object:
+
+set_hot_water_schedule:
+  target:
+    entity:
+      integration: unfr0zen
+      domain: calendar
+  fields:
+    days:
+      required: true
+      example: '{"mon": [{"on": "06:00", "off": "08:00"}]}'
+      selector:
+        object:

@@ -6,10 +6,11 @@ from unittest.mock import patch
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_mqtt_message
 
-from custom_components.unfr0zen_schedule.const import DOMAIN
+from custom_components.unfr0zen.const import DOMAIN
 
 from .conftest import week
 
@@ -43,11 +44,13 @@ async def retained_on_subscribe(hass, setup, topic, payload):
 
 
 def answer_writes(hass, mqtt_mock, after):
-    """The unit takes each write and republishes the week as `after`."""
+    """The unit takes each write and republishes the week as `after`, with
+    the days written as written."""
 
     async def publish(topic, payload, *args, **kwargs):
         if topic == f"{BASE}/set/heating_times":
-            hass.loop.call_soon(async_fire_mqtt_message, hass, f"{BASE}/heating_times", json.dumps(after))
+            week = {**after, "days": {**after["days"], **json.loads(payload)}}
+            hass.loop.call_soon(async_fire_mqtt_message, hass, f"{BASE}/heating_times", json.dumps(week))
 
     mqtt_mock.async_publish.side_effect = publish
 
@@ -69,6 +72,24 @@ async def events(hass, start, end):
         return_response=True,
     )
     return [(e["start"], e["end"], e["summary"]) for e in result[ENTITY]["events"]]
+
+
+async def test_the_calendar_is_on_the_units_own_device(hass: HomeAssistant, mqtt_mock):
+    # The unit's device, as MQTT discovery made it.
+    mqtt_entry = MockConfigEntry(domain="mqtt")
+    mqtt_entry.add_to_hass(hass)
+    devices = dr.async_get(hass)
+    nest = devices.async_get_or_create(
+        config_entry_id=mqtt_entry.entry_id, identifiers={("mqtt", "nestlocal_02aa01ac")}, name="Nest Thermostat"
+    )
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id=f"nestlocal:{BASE}", title=BASE, data={"transport": "nestlocal", "base": BASE}
+    )
+    entry.add_to_hass(hass)
+    setup = hass.async_create_task(hass.config_entries.async_setup(entry.entry_id))
+    await retained_on_subscribe(hass, setup, f"{BASE}/heating_times", week())
+    assert er.async_get(hass).async_get("calendar.nest_thermostat_schedule").device_id == nest.id
+    assert dr.async_entries_for_config_entry(devices, entry.entry_id) == [], "no device of its own"
 
 
 async def test_shows_each_setpoint_until_the_next(hass, calendar):
@@ -155,7 +176,24 @@ async def test_a_one_off_event_is_refused(hass, calendar, hass_ws_client):
 
 async def test_a_write_the_unit_ignores_fails(hass, calendar, hass_ws_client):
     client = await hass_ws_client(hass)
-    with patch("custom_components.unfr0zen_schedule.mqtt_backend.WRITE_TIMEOUT", 0.05):
+    with patch("custom_components.unfr0zen.mqtt_backend.WRITE_TIMEOUT", 0.05):
+        await client.send_json_auto_id({"type": "calendar/event/delete", "entity_id": ENTITY, "uid": "tue-07:00"})
+        reply = await client.receive_json()
+    assert not reply["success"]
+    assert "did not take" in reply["error"]["message"]
+
+
+async def test_a_change_without_the_written_days_does_not_complete_a_write(hass, calendar, hass_ws_client):
+    # A change made elsewhere arrives while the unit refuses the write.
+    other = week(mon=[("06:00", 20), ("22:00", 17)], tue=[("07:00", 21)], wed=[("08:00", 19)])
+
+    async def publish(topic, payload, *args, **kwargs):
+        if topic == f"{BASE}/set/heating_times":
+            hass.loop.call_soon(async_fire_mqtt_message, hass, f"{BASE}/heating_times", json.dumps(other))
+
+    calendar.async_publish.side_effect = publish
+    client = await hass_ws_client(hass)
+    with patch("custom_components.unfr0zen.mqtt_backend.WRITE_TIMEOUT", 0.05):
         await client.send_json_auto_id({"type": "calendar/event/delete", "entity_id": ENTITY, "uid": "tue-07:00"})
         reply = await client.receive_json()
     assert not reply["success"]

@@ -1,0 +1,24 @@
+{
+  "domain": "unfr0zen",
+  "name": "unfr0zen",
+  "after_dependencies": [
+    "frontend",
+    "matter",
+    "mqtt",
+    "zha"
+  ],
+  "codeowners": [],
+  "config_flow": true,
+  "dependencies": [
+    "http"
+  ],
+  "documentation": "https://github.com/unfr0zen/homeassistant-unfr0zen",
+  "integration_type": "device",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/unfr0zen/homeassistant-unfr0zen/issues",
+  "mqtt": [
+    "+/+/heating_times"
+  ],
+  "requirements": [],
+  "version": "0.1.0"
+}

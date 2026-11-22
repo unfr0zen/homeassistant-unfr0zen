@@ -7,8 +7,8 @@ import pytest
 from zigpy.zcl.clusters.hvac import Thermostat
 from zigpy.zcl.foundation import GENERAL_COMMANDS, GeneralCommand, Status
 
-from custom_components.unfr0zen_schedule.schedule import Schedule, Setpoint
-from custom_components.unfr0zen_schedule.zha_backend import ZhaBackend
+from custom_components.unfr0zen.schedule import Schedule, Setpoint
+from custom_components.unfr0zen.zha_backend import ZhaBackend
 
 SET = Thermostat.ServerCommandDefs.set_weekly_schedule
 GET = Thermostat.ServerCommandDefs.get_weekly_schedule
@@ -93,5 +93,5 @@ async def test_a_refused_write_fails(hass):
 
 
 async def test_without_zha_the_cluster_is_an_error(hass):
-    with pytest.raises(HomeAssistantError, match="ZHA has no thermostat cluster"):
+    with pytest.raises(HomeAssistantError, match="ZHA has no cluster 0x0201"):
         ZhaBackend(hass, "00:12:4b:00:12:34:56:78")._cluster()

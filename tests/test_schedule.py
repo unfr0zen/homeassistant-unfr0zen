@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from homeassistant.exceptions import HomeAssistantError
 import pytest
 
-from custom_components.unfr0zen_schedule.schedule import (
+from custom_components.unfr0zen.schedule import (
     Setpoint,
     days_json,
     from_json,

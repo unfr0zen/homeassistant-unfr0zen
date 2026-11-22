@@ -11,7 +11,7 @@ from homeassistant.helpers.service_info.mqtt import MqttServiceInfo
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_mqtt_message
 
-from custom_components.unfr0zen_schedule.const import DOMAIN
+from custom_components.unfr0zen.const import DOMAIN
 
 from .conftest import week
 
@@ -19,7 +19,7 @@ from .conftest import week
 @pytest.fixture(autouse=True)
 def no_setup():
     """The flow alone: a created entry is not set up."""
-    with patch("custom_components.unfr0zen_schedule.async_setup_entry", return_value=True):
+    with patch("custom_components.unfr0zen.async_setup_entry", return_value=True):
         yield
 
 

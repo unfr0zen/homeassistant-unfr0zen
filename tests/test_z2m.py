@@ -5,7 +5,7 @@ import json
 from homeassistant.config_entries import ConfigEntryState
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_mqtt_message
 
-from custom_components.unfr0zen_schedule.const import DOMAIN
+from custom_components.unfr0zen.const import DOMAIN
 
 from .conftest import week
 
@@ -61,4 +61,4 @@ async def test_reads_and_writes_heating_times_through_zigbee2mqtt(hass, mqtt_moc
         }
     )
     assert (await client.receive_json())["success"]
-    assert entry.runtime_data.data.days[1][0].temp == 19
+    assert entry.runtime_data.schedule.data.days[1][0].temp == 19

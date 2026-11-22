@@ -36,6 +36,21 @@ class Backend:
         raise NotImplementedError
 
 
+class HotWaterBackend(Backend):
+    """The hot water schedule, which only some units have."""
+
+    async def async_present(self) -> bool:
+        """Whether the unit has hot water now."""
+        raise NotImplementedError
+
+    async def async_watch(self, present: bool, on_change: Callable[[], None]) -> None:
+        """Calls `on_change` once the unit stops being `present`."""
+        raise NotImplementedError
+
+    def async_stop(self) -> None:
+        """Stops what `async_present` and `async_watch` listen to."""
+
+
 def day_bit(day: int) -> int:
     """A day (0 Monday) as the schedule's day bitmap, which starts on Sunday."""
     return 1 << ((day + 1) % 7)

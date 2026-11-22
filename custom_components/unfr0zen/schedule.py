@@ -12,7 +12,7 @@ import datetime as dt
 import re
 from typing import Any
 
-from homeassistant.exceptions import HomeAssistantError
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 
 DAYS = ("mon", "tue", "wed", "thu", "fri", "sat", "sun")
 RRULE_DAYS = ("MO", "TU", "WE", "TH", "FR", "SA", "SU")
@@ -59,11 +59,56 @@ def hhmm(minute: int) -> str:
     return f"{minute // 60:02d}:{minute % 60:02d}"
 
 
-def check_temp(temp: float) -> float:
-    """`temp` in the unit's half degrees, or an error outside its range."""
-    if not TEMP_RANGE[0] <= temp <= TEMP_RANGE[1]:
-        raise HomeAssistantError(f"{temp:g} °C is outside {TEMP_RANGE[0]:g}-{TEMP_RANGE[1]:g} °C")
+def check_temp(temp: float, limits: tuple[float, float] = TEMP_RANGE) -> float:
+    """`temp` in the unit's half degrees, or an error outside `limits`."""
+    if not limits[0] <= temp <= limits[1]:
+        raise ServiceValidationError(f"{temp:g} °C is outside {limits[0]:g}-{limits[1]:g} °C")
     return round(temp * 2) / 2
+
+
+def parse_hhmm(value: Any) -> int | None:
+    """ "HH:MM" as minutes after midnight; None if it is not that."""
+    match = re.fullmatch(r"([01]\d|2[0-3]):([0-5]\d)", value) if isinstance(value, str) else None
+    return int(match[1]) * 60 + int(match[2]) if match else None
+
+
+def check_days(value: Any, example: str) -> list[tuple[int, list[Any]]]:
+    """A service's days object, as (day index, entries): any of the seven."""
+    if not isinstance(value, dict) or not value:
+        raise ServiceValidationError(f"days must be an object such as {example}")
+    out = []
+    for name, entries in value.items():
+        if name not in DAYS:
+            raise ServiceValidationError(f"Unknown day {name!r}: use {', '.join(DAYS)}")
+        if not isinstance(entries, list) or not all(isinstance(e, dict) for e in entries):
+            raise ServiceValidationError(f"{name} must be a list such as {example}")
+        out.append((DAYS.index(name), entries))
+    return out
+
+
+def parse_days(value: Any, limits: tuple[float, float] = TEMP_RANGE) -> dict[int, Day]:
+    """The days a set_schedule call names, each replaced whole."""
+    out = {}
+    for day, entries in check_days(value, '{"mon": [{"time": "06:30", "temp": 21}]}'):
+        points: dict[int, float] = {}
+        for entry in entries:
+            minute, temp = parse_hhmm(entry.get("time")), entry.get("temp")
+            if minute is None:
+                raise ServiceValidationError(f"{DAYS[day]}: time {entry.get('time')!r} is not HH:MM")
+            if isinstance(temp, bool) or not isinstance(temp, int | float):
+                raise ServiceValidationError(f"{DAYS[day]} {hhmm(minute)}: temp {temp!r} is not a number")
+            if minute in points:
+                raise ServiceValidationError(f"{DAYS[day]}: two setpoints at {hhmm(minute)}")
+            points[minute] = check_temp(float(temp), limits)
+        if len(points) > MAX_PER_DAY:
+            raise ServiceValidationError(f"The Nest takes at most {MAX_PER_DAY} setpoints a day")
+        out[day] = tuple(Setpoint(m, c) for m, c in sorted(points.items()))
+    return out
+
+
+def week_json(schedule: Schedule) -> dict[str, list[dict[str, Any]]]:
+    """The whole week, as the cards read it."""
+    return days_json(dict(enumerate(schedule.days)))
 
 
 def from_json(value: Any) -> Schedule:
@@ -140,7 +185,9 @@ def summary(setpoint: Setpoint) -> str:
     return f"{setpoint.temp:g} °C"
 
 
-def parse_event(event: dict[str, Any], tz: dt.tzinfo) -> tuple[list[int], Setpoint]:
+def parse_event(
+    event: dict[str, Any], tz: dt.tzinfo, limits: tuple[float, float] = TEMP_RANGE
+) -> tuple[list[int], Setpoint]:
     """The days and setpoint a calendar event asks for.
 
     The event must repeat weekly; its end is ignored, as the next setpoint
@@ -155,12 +202,12 @@ def parse_event(event: dict[str, Any], tz: dt.tzinfo) -> tuple[list[int], Setpoi
     match = re.search(r"\d+(?:[.,]\d+)?", event.get("summary") or "")
     if match is None:
         raise HomeAssistantError('Name the event after its temperature, such as "20.5 °C"')
-    temp = check_temp(float(match.group().replace(",", ".")))
-    days = _weekly_days(event.get("rrule") or "", start.weekday())
+    temp = check_temp(float(match.group().replace(",", ".")), limits)
+    days = weekly_days(event.get("rrule") or "", start.weekday())
     return days, Setpoint(start.hour * 60 + start.minute, temp)
 
 
-def _weekly_days(rrule: str, default: int) -> list[int]:
+def weekly_days(rrule: str, default: int) -> list[int]:
     """The days a weekly RRULE names; anything else is refused."""
     parts = dict(p.split("=", 1) for p in rrule.upper().split(";") if "=" in p)
     if (
