@@ -154,6 +154,17 @@ async def test_an_auto_schedule_is_a_range_of_lows_and_highs(hass):
     ]
 
 
+async def test_a_repeated_range_week_fits_the_units_transition_limit(hass):
+    c = server(nest(1), OK, OK)
+    b, p = backend(hass, c)
+    day = tuple(Setpoint(hour * 60, 19.0, 24.0) for hour in range(10))
+    await b.async_write(await b.async_read(), dict.fromkeys(range(7), day))
+    p.stop()
+    assert dataclass_to_tag_dict(c.write_attribute.call_args.args[2])[0]["4"] == [
+        {"0": 0x7F, "1": point.minute, "4": 2400, "5": 1900} for point in day
+    ]
+
+
 async def test_a_nestlocal_without_schedules_is_named(hass):
     b, p = backend(hass, server(None))
     with pytest.raises(HomeAssistantError, match="nestlocal too old for the Matter schedule"):

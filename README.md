@@ -119,7 +119,7 @@ next time.
 
 ### Hot water
 
-- Each on period is an event repeating every week, from on to off; one may run past midnight.
+- Each on period is an event repeating every week and may run past midnight. Over Matter, touching periods appear as one event when their combined duration is under 24 hours.
 - Add, move or delete periods as for heating; the title is ignored.
 - The calendar only exists on a Nest with hot water control, and comes or goes with it.
 
@@ -130,6 +130,8 @@ next time.
 | Per day | 10 setpoints | 6 periods |
 | Temperatures | 4.5–35 °C (9–32 °C over Zigbee and Matter), in half degrees; a heat-cool high 1.5 °C or more above its low | — |
 | Refused | one-off events, other repeats, all-day events | one-off events, other repeats, all-day events, overlapping periods |
+
+Matter supports up to 56 distinct heat-cool transitions per week. The same time, low and high on several days count once.
 
 A refused change is reported with the reason and leaves the Nest's schedule as it was.
 

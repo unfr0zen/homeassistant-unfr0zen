@@ -114,6 +114,14 @@ async def test_writes_the_week_as_on_and_off_transitions(hass):
     assert c.device == reported(dataclass_to_tag_dict(value))
 
 
+async def test_overnight_periods_share_transitions_across_days(hass):
+    c = server([], OK, OK)
+    b, p = backend(hass, c)
+    await b.async_write(HotWater(EMPTY), {5: (Period(1380, 60),), 6: (Period(1380, 60),)})
+    p.stop()
+    assert dataclass_to_tag_dict(c.write_attribute.call_args.args[2])[0]["4"] == [on(0x41, 1380), off(0x03, 60)]
+
+
 async def test_days_not_written_come_from_the_unit(hass):
     c = server(hot_water(on(0x08, 1020), off(0x08, 1140)), OK, OK)
     b, p = backend(hass, c)
@@ -126,6 +134,28 @@ async def test_days_not_written_come_from_the_unit(hass):
         {"0": 0x08, "1": 1020, "3": 4},
         {"0": 0x08, "1": 1140, "3": 0},
     ]
+
+
+@pytest.mark.parametrize("off_minute", [59, 60])
+async def test_a_write_checks_the_duration_of_periods_joined_on_readback(hass, off_minute):
+    # Sunday 23:00 to Monday 00:30, continuing until 01:00.
+    c = server([], OK, OK)
+    b, p = backend(hass, c)
+    read = b.async_read
+
+    async def refreshed():
+        if c.write_attribute.await_count:
+            c.device = hot_water(on(0x01, 1380), off(0x02, off_minute))
+        return await read()
+
+    with patch.object(b, "async_read", refreshed):
+        write = b.async_write(HotWater(EMPTY), {6: (Period(1380, 30),), 0: (Period(30, 60),)})
+        if off_minute == 60:
+            await write
+        else:
+            with pytest.raises(HomeAssistantError, match="did not take the hot water schedule"):
+                await write
+    p.stop()
 
 
 async def test_a_write_the_unit_did_not_apply_fails(hass):

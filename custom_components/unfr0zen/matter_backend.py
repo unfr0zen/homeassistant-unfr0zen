@@ -82,6 +82,10 @@ class MatterBackend(Backend):
 
         if not any(week):
             return NO_SCHEDULE
+        days_for_point: dict[Setpoint, int] = {}
+        for d, points in enumerate(week):
+            for point in points:
+                days_for_point[point] = days_for_point.get(point, 0) | day_bit(d)
         return [
             Thermostat.Structs.ScheduleStruct(
                 scheduleHandle=HANDLE,
@@ -89,7 +93,7 @@ class MatterBackend(Backend):
                 builtIn=True,
                 transitions=[
                     Thermostat.Structs.ScheduleTransitionStruct(
-                        dayOfWeek=day_bit(d),
+                        dayOfWeek=bits,
                         transitionTime=p.minute,
                         # A range's low heats and its high cools.
                         heatingSetpoint=round(p.temp * 100) if current.mode in ("heat", "range") else None,
@@ -97,11 +101,13 @@ class MatterBackend(Backend):
                         if current.mode in ("cool", "range")
                         else None,
                     )
-                    for d in range(7)
-                    for p in week[d]
+                    for p, bits in days_for_point.items()
                 ],
             )
         ]
+
+    def _matches(self, actual: Any, week: list[Any]) -> bool:
+        return actual.days == tuple(tuple(day) for day in week)
 
     async def async_start(self, on_update: Callable[[Any], None]) -> Callable[[], None]:
         from matter_server.common.models import EventType
@@ -161,7 +167,7 @@ class MatterBackend(Backend):
                 await atomic(ROLLBACK_WRITE)
             raise
         # A write the server didn't pass on commits nothing: check the unit.
-        if (await self.async_read()).days != tuple(tuple(d) for d in week):
+        if not self._matches(await self.async_read(), week):
             raise error(f"matter_not_taken_{self.kind}")
 
 
@@ -183,16 +189,17 @@ class MatterHotWater(MatterBackend, HotWaterBackend):
     def _encode(self, current: Any, week: list[Periods]) -> list[Any]:
         from chip.clusters.Objects import Thermostat
 
-        def transition(day: int, minute: int, mode: int) -> Any:
-            return Thermostat.Structs.ScheduleTransitionStruct(
-                dayOfWeek=day_bit(day % 7), transitionTime=minute, systemMode=mode
-            )
-
-        transitions = []
-        for d in range(7):
-            for p in week[d]:
+        days_for_mark: dict[tuple[int, int], int] = {}
+        for d, periods in enumerate(week):
+            for p in periods:
                 # Off the next day for a period past midnight.
-                transitions += [transition(d, p.on, MODE_HEAT), transition(d + p.end // DAY_MINUTES, p.off, MODE_OFF)]
+                for day, minute, mode in ((d, p.on, MODE_HEAT), (d + p.end // DAY_MINUTES, p.off, MODE_OFF)):
+                    mark = (minute, mode)
+                    days_for_mark[mark] = days_for_mark.get(mark, 0) | day_bit(day % 7)
+        transitions = [
+            Thermostat.Structs.ScheduleTransitionStruct(dayOfWeek=bits, transitionTime=minute, systemMode=mode)
+            for (minute, mode), bits in days_for_mark.items()
+        ]
         if not transitions:
             return NO_SCHEDULE
         return [
@@ -200,6 +207,26 @@ class MatterHotWater(MatterBackend, HotWaterBackend):
                 scheduleHandle=HOT_WATER_HANDLE, systemMode=MODE_HEAT, builtIn=True, transitions=transitions
             )
         ]
+
+    def _matches(self, actual: HotWater, week: list[Periods]) -> bool:
+        # The unit can join touching periods, including across Sunday midnight.
+        def intervals(days: tuple[Periods, ...] | list[Periods]) -> list[tuple[int, int]]:
+            end_of_week = 7 * DAY_MINUTES
+            spans = []
+            for day, periods in enumerate(days):
+                for p in periods:
+                    start, end = day * DAY_MINUTES + p.on, day * DAY_MINUTES + p.end
+                    spans.append((start, min(end, end_of_week)))
+                    if end > end_of_week:
+                        spans.append((0, end - end_of_week))
+            joined = []
+            for start, end in sorted(spans):
+                if joined and joined[-1][1] == start:
+                    start = joined.pop()[0]
+                joined.append((start, end))
+            return joined
+
+        return intervals(actual.days) == intervals(week)
 
     async def async_present(self) -> bool:
         try:
