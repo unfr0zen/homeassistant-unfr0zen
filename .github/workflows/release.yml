@@ -1,0 +1,40 @@
+name: Release
+
+# A tag v<version> publishes that version as a GitHub release, once the
+# tests pass and the tag matches the manifest.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: astral-sh/setup-uv@v7
+      - run: uv venv -p 3.14 .venv && uv pip install -p .venv -r requirements_test.txt
+      - run: .venv/bin/ruff format --check . && .venv/bin/ruff check .
+      - run: .venv/bin/python -m pytest -q
+      - run: node --check custom_components/unfr0zen/frontend/unfr0zen-cards.js
+
+  release:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check the tag is the manifest's version
+        run: |
+          version=$(python3 -c "import json; print(json.load(open('custom_components/unfr0zen/manifest.json'))['version'])")
+          if [ "v$version" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME, but the manifest's version is $version"
+            exit 1
+          fi
+      - name: Package the integration
+        run: cd custom_components && zip -qr ../unfr0zen.zip unfr0zen -x '*/__pycache__/*'
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" unfr0zen.zip --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
