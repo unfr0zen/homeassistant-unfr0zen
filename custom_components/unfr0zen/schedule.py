@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import datetime as dt
+import math
 import re
 from typing import Any
 
@@ -43,6 +44,7 @@ class Schedule:
 
     mode: str
     days: tuple[Day, ...]
+    handle: bytes = b"nest"
 
     @property
     def writable(self) -> bool:
@@ -66,17 +68,16 @@ def hhmm(minute: int) -> str:
 
 
 def check_temp(temp: float, limits: tuple[float, float] = TEMP_RANGE) -> float:
-    """`temp` in the unit's half degrees, or an error outside `limits`."""
+    """Validate a Celsius input; the thermostat rounds to its display scale."""
     if not limits[0] <= temp <= limits[1]:
         raise invalid("temp_outside", temp=f"{temp:g}", min=f"{limits[0]:g}", max=f"{limits[1]:g}")
-    return round(temp * 2) / 2
+    return temp
 
 
 def check_range(low: float, high: float, limits: tuple[float, float] = TEMP_RANGE) -> tuple[float, float]:
-    """A range's low and high in half degrees, the high the Nest's gap above
-    the low, or an error."""
+    """Check both Celsius setpoints and the minimum gap between them."""
     low, high = check_temp(low, limits), check_temp(high, limits)
-    if high - low < RANGE_GAP:
+    if high - low < RANGE_GAP - 1e-9:
         raise invalid("range_gap", low=f"{low:g}", high=f"{high:g}", gap=f"{RANGE_GAP:g}")
     return low, high
 
@@ -167,6 +168,55 @@ def setpoint_json(setpoint: Setpoint) -> dict[str, Any]:
     if setpoint.high is not None:
         return {"time": hhmm(setpoint.minute), "low": setpoint.temp, "high": setpoint.high}
     return {"time": hhmm(setpoint.minute), "temp": setpoint.temp}
+
+
+def matches(
+    actual: Schedule, current: Schedule, changes: dict[int, Day], limits: tuple[float, float], *, partial: bool = False
+) -> bool:
+    """Readback can contain whole Fahrenheit setpoints and a carried midnight target on an empty day."""
+    if (actual.mode, actual.handle) != (current.mode, current.handle):
+        return False
+    expected = [changes.get(d, day) for d, day in enumerate(current.days)]
+    if not any(expected):
+        return not any(actual.days)
+
+    def stored(c: float) -> float:
+        f = max(math.ceil(limits[0] * 1.8 + 32), min(math.floor(limits[1] * 1.8 + 32), math.floor(c * 1.8 + 32.5)))
+        return round((f - 32) / 1.8, 2)
+
+    def same(p: Setpoint, q: Setpoint) -> bool:
+        def half(c: float) -> float:
+            return math.floor(c * 2 + 0.5) / 2
+
+        return p == q or any(
+            q == Setpoint(p.minute, rounded(p.temp), rounded(p.high) if p.high is not None else None)
+            for rounded in (stored, half)
+        )
+
+    for d, wanted in enumerate(expected):
+        if partial and d not in changes:
+            continue
+        got = actual.days[d]
+        if len(got) == len(wanted) and all(same(p, q) for p, q in zip(wanted, got, strict=True)):
+            continue
+        # Changing the preceding day's final target can update an inherited midnight.
+        if (
+            (not wanted or (d not in changes and len(wanted) == 1 and wanted[0].minute == 0))
+            and len(got) == 1
+            and got[0].minute == 0
+        ):
+            previous = next(
+                (
+                    day[-1]
+                    for n in range(1, 8)
+                    if (day := expected[(d - n) % 7]) and (len(day) > 1 or day[0].minute != 0 or (d - n) % 7 in changes)
+                ),
+                None,
+            )
+            if previous and same(Setpoint(0, previous.temp, previous.high), got[0]):
+                continue
+        return False
+    return True
 
 
 def occurrences(schedule: Schedule, start: dt.datetime, end: dt.datetime, tz: dt.tzinfo) -> list[Occurrence]:

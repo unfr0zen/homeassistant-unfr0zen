@@ -357,3 +357,34 @@ async def test_a_node_without_the_thermostat_endpoint_is_unavailable(hass):
     with pytest.raises(UpdateFailed, match="no endpoint 1 of the Nest"):
         await ScheduleCoordinator(hass, entry, b)._async_update_data()
     p.stop()
+
+
+async def test_editing_the_active_named_week_preserves_its_name_and_the_other_weeks(hass):
+    value = [
+        *nest(4, {"0": 2, "1": 420, "5": 1900}),
+        {"0": "czE=", "1": 4, "2": "Weekend", "4": [{"0": 2, "1": 390, "5": 2250}], "5": False},
+    ]
+    c = server(value, OK, OK, OK, OK)
+    c.node.node_data.attributes["1/513/79"] = "czE="
+    c.node.update_attribute("1/513/79", "czE=")
+
+    async def refresh(node_id, path):
+        if path == "1/513/81":
+            c.node.update_attribute(path, c.device)
+
+    c.refresh_attribute.side_effect = refresh
+    b, patcher = backend(hass, c)
+    try:
+        current = await b.async_read()
+        assert current.days[0] == (Setpoint(390, 22.5),)
+        await b.async_write(current, {0: (Setpoint(390, 21.5),)})
+        assert value[0] in c.device
+        named = next(item for item in c.device if item["0"] == "czE=")
+        assert named["2"] == "Weekend" and named["4"][0]["5"] == 2150
+        await b.async_write(await b.async_read(), {0: ()})
+        assert c.device[0]["0"] == "czE=" and c.device[0]["2"] == "Weekend"
+        assert c.device[0]["4"] == [{"0": 127, "1": 0}]
+        assert (await b.async_read()).handle == b"s1"
+
+    finally:
+        patcher.stop()

@@ -86,7 +86,7 @@
   "period_needs_times": "Varje period behöver en på- och en av-tid.",
   "period_to_itself": "En period från {time} till samma tid.",
   "periods_overlap": "Perioderna överlappar.",
-  "mode_changed": "Nest har bytt läge sedan du öppnade detta: stäng och redigera igen.",
+  "mode_changed": "Det aktiva schemat har ändrats. Stäng redigeraren och öppna den igen innan du sparar.",
   "drag_edge_hint": "Dra för att ändra den här tiden",
   "drag_move_hint": "Dra för att flytta, längden behålls"
 }

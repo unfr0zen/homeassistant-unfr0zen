@@ -120,7 +120,9 @@ class NestlocalBackend(_MqttBackend):
     async def async_write(self, current: Any, days: dict[int, Any]) -> None:
         try:
             await self._await(
-                _having(days), lambda: self._publish(f"{self.base}/set/{self.key}", self.encode(days)), WRITE_TIMEOUT
+                _having(current, days, (4.5, 35.0)),
+                lambda: self._publish(f"{self.base}/set/{self.key}", self.encode(days)),
+                WRITE_TIMEOUT,
             )
         except TimeoutError as err:
             raise error(f"mqtt_not_taken_{self.kind}") from err
@@ -200,7 +202,7 @@ class Z2mBackend(_MqttBackend):
             # Zigbee2MQTT reports each day as written: the write is done when
             # every day is as asked.
             await self._await(
-                _having(days),
+                _having(current, days, (9.0, 32.0)),
                 lambda: self._publish(f"{self.state_topic}/set", {self.key: self.encode(days)}),
                 WRITE_TIMEOUT,
             )
@@ -285,6 +287,8 @@ def _any(value: Any) -> bool:
     return True
 
 
-def _having(days: dict[int, Any]) -> Callable[[Any], bool]:
+def _having(current: Any, days: dict[int, Any], limits: tuple[float, float]) -> Callable[[Any], bool]:
     """A test of whether a schedule has `days` as given."""
+    if isinstance(current, schedule.Schedule):
+        return lambda value: schedule.matches(value, current, days, limits, partial=True)
     return lambda value: all(tuple(value.days[d]) == tuple(periods) for d, periods in days.items())

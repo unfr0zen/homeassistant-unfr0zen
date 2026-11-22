@@ -10,7 +10,9 @@ from custom_components.unfr0zen.schedule import (
     Setpoint,
     days_json,
     from_json,
+    matches,
     occurrences,
+    parse_days,
     parse_event,
     with_setpoint,
 )
@@ -72,7 +74,7 @@ def test_a_weekly_event_is_a_setpoint_on_each_of_its_days():
         },
         LONDON,
     )
-    assert (days, point) == ([0, 2], Setpoint(390, 20.5))
+    assert (days, point) == ([0, 2], Setpoint(390, 20.4))
 
 
 def test_a_weekly_event_without_days_repeats_on_its_own_day():
@@ -134,3 +136,21 @@ def test_an_error_takes_a_placeholder_named_key():
     assert str(error("z2m_nothing", key="heating_times", topic="zigbee2mqtt/Hallway")) == (
         "Zigbee2MQTT sent no heating_times for zigbee2mqtt/Hallway"
     )
+
+
+def test_readback_checks_whole_fahrenheit_and_carried_midnight_values():
+    old = from_json(week(mon=[("06:00", 18)], tue=[("00:00", 18)]))
+    want = {0: (Setpoint(360, 20.5),)}
+    actual = from_json(week(mon=[("06:00", 20.56)], tue=[("00:00", 20.56)]))
+    assert matches(actual, old, want, (9, 32))
+    wrong = from_json(week(mon=[("06:00", 20.55)], tue=[("00:00", 20.55)]))
+    assert not matches(wrong, old, want, (9, 32))
+
+
+def test_service_passes_fahrenheit_and_celsius_rounding_to_the_thermostat():
+    current = from_json(week())
+    change = parse_days({"mon": [{"time": "06:00", "temp": 20.8}]})
+    assert change[0] == (Setpoint(360, 20.8),)
+    for temp in (20.56, 21.0):
+        assert matches(from_json(week(mon=[("06:00", temp)])), current, change, (9, 32), partial=True)
+    assert not matches(from_json(week(mon=[("06:00", 21.11)])), current, change, (9, 32), partial=True)

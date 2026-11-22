@@ -183,6 +183,7 @@ class ScheduleCalendar(_UnitCalendar):
         schedule = self.coordinator.data
         return self._base_attributes() | {
             "mode": schedule.mode,
+            **({"schedule_handle": schedule.handle.hex()} if schedule.handle != b"nest" else {}),
             "writable": schedule.writable,
             "week": week_json(schedule),
             "min_temp": self._limits[0],

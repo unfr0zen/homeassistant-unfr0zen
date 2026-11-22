@@ -26,7 +26,7 @@ from homeassistant.helpers.event import async_track_time_interval
 from .backend import Backend, HotWaterBackend, day_bit
 from .errors import error
 from .hotwater import DAY_MINUTES, HotWater, Period, Periods
-from .schedule import Schedule, Setpoint
+from .schedule import Schedule, Setpoint, matches
 
 ENDPOINT = 1
 THERMOSTAT = 0x0201
@@ -88,9 +88,9 @@ class MatterBackend(Backend):
                 days_for_point[point] = days_for_point.get(point, 0) | day_bit(d)
         return [
             Thermostat.Structs.ScheduleStruct(
-                scheduleHandle=HANDLE,
+                scheduleHandle=current.handle,
                 systemMode=SYSTEM_MODE[current.mode],
-                builtIn=True,
+                builtIn=current.handle == HANDLE,
                 transitions=[
                     Thermostat.Structs.ScheduleTransitionStruct(
                         dayOfWeek=bits,
@@ -106,8 +106,8 @@ class MatterBackend(Backend):
             )
         ]
 
-    def _matches(self, actual: Any, week: list[Any]) -> bool:
-        return actual.days == tuple(tuple(day) for day in week)
+    def _matches(self, actual: Schedule, current: Schedule, days: dict[int, Any]) -> bool:
+        return matches(actual, current, days, (9.0, 32.0))
 
     async def async_start(self, on_update: Callable[[Any], None]) -> Callable[[], None]:
         from matter_server.common.models import EventType
@@ -120,16 +120,33 @@ class MatterBackend(Backend):
             with contextlib.suppress(HomeAssistantError):
                 on_update(self._decode(node, endpoint))
 
-        return client.subscribe_events(
+        stop = client.subscribe_events(
             updated,
             event_filter=EventType.ATTRIBUTE_UPDATED,
             node_filter=node.node_id,
             attr_path_filter=_path(endpoint),
         )
+        if self.kind != "schedule" or f"{endpoint}/{THERMOSTAT}/79" not in node.node_data.attributes:
+            return stop
+        stop_handle = client.subscribe_events(
+            updated,
+            event_filter=EventType.ATTRIBUTE_UPDATED,
+            node_filter=node.node_id,
+            attr_path_filter=f"{endpoint}/{THERMOSTAT}/79",
+        )
+
+        def unsubscribe() -> None:
+            stop()
+            stop_handle()
+
+        return unsubscribe
 
     async def async_read(self) -> Any:
         client, node = self._node()
         endpoint = self._endpoint(node)
+        active_path = f"{endpoint}/{THERMOSTAT}/79"
+        if self.kind == "schedule" and active_path in node.node_data.attributes:
+            await _call(client.refresh_attribute(node.node_id, active_path))
         await _call(client.refresh_attribute(node.node_id, _path(endpoint)))
         return self._decode(node, endpoint)
 
@@ -138,14 +155,6 @@ class MatterBackend(Backend):
 
         client, node = self._node()
         endpoint = self._endpoint(node)
-        # The days not written as the unit has them now, in the mode the
-        # edit was checked against.
-        fresh = await self.async_read()
-        if getattr(fresh, "mode", None) != getattr(current, "mode", None):
-            raise error(f"changed_while_editing_{self.kind}")
-        current = fresh
-        week = [days.get(d, current.days[d]) for d in range(7)]
-        value = self._encode(current, week)
 
         async def atomic(request: int) -> Any:
             return await client.send_device_command(
@@ -158,8 +167,37 @@ class MatterBackend(Backend):
                 ),
             )
 
+        async def checked_read() -> Any:
+            fresh = await self.async_read()
+            if getattr(fresh, "mode", None) != getattr(current, "mode", None) or getattr(
+                fresh, "handle", None
+            ) != getattr(current, "handle", None):
+                raise error(f"changed_while_editing_{self.kind}")
+            return fresh
+
+        await checked_read()
         _check("begin", await _call(atomic(BEGIN_WRITE)))
         try:
+            current = await checked_read()
+            week = [days.get(d, current.days[d]) for d in range(7)]
+            value = self._encode(current, week)
+            if isinstance(current, Schedule):
+                schedules = node.get_attribute_value(endpoint, Thermostat, Thermostat.Attributes.Schedules) or []
+                active = next((s for s in schedules if s.scheduleHandle == current.handle), None)
+                # Matter requires at least one transition. With alternatives present,
+                # target the active handle explicitly and keep every other schedule.
+                if not value and (current.handle != HANDLE or any(s.scheduleHandle != HANDLE for s in schedules)):
+                    value = [
+                        Thermostat.Structs.ScheduleStruct(
+                            scheduleHandle=current.handle,
+                            systemMode=SYSTEM_MODE[current.mode],
+                            builtIn=current.handle == HANDLE,
+                            transitions=[Thermostat.Structs.ScheduleTransitionStruct(dayOfWeek=127, transitionTime=0)],
+                        )
+                    ]
+                if value and active is not None:
+                    value[0].name = active.name
+                value = [*value, *(s for s in schedules if s.scheduleHandle != current.handle)]
             await _call(client.write_attribute(node.node_id, _path(endpoint), value))
             _check("commit", await _call(atomic(COMMIT_WRITE)))
         except HomeAssistantError:
@@ -167,7 +205,7 @@ class MatterBackend(Backend):
                 await atomic(ROLLBACK_WRITE)
             raise
         # A write the server didn't pass on commits nothing: check the unit.
-        if not self._matches(await self.async_read(), week):
+        if not self._matches(await self.async_read(), current, days):
             raise error(f"matter_not_taken_{self.kind}")
 
 
@@ -208,7 +246,9 @@ class MatterHotWater(MatterBackend, HotWaterBackend):
             )
         ]
 
-    def _matches(self, actual: HotWater, week: list[Periods]) -> bool:
+    def _matches(self, actual: HotWater, current: HotWater, days: dict[int, Periods]) -> bool:
+        week = [days.get(d, day) for d, day in enumerate(current.days)]
+
         # The unit can join touching periods, including across Sunday midnight.
         def intervals(days: tuple[Periods, ...] | list[Periods]) -> list[tuple[int, int]]:
             end_of_week = 7 * DAY_MINUTES
@@ -306,14 +346,21 @@ def read(node: Any, endpoint: int = ENDPOINT) -> Schedule:
     """The heating schedule in the node's attribute cache."""
     from chip.clusters.Objects import Thermostat
 
-    nest = _schedule(node, endpoint, HANDLE)
+    handle = HANDLE
+    if endpoint in node.endpoints and node.endpoints[endpoint].has_attribute(
+        Thermostat, Thermostat.Attributes.ActiveScheduleHandle
+    ):
+        active = node.get_attribute_value(endpoint, Thermostat, Thermostat.Attributes.ActiveScheduleHandle)
+        if isinstance(active, bytes):
+            handle = active
+    nest = _schedule(node, endpoint, handle)
     modes = {v: k for k, v in SYSTEM_MODE.items()}
     if nest is None:
         # An empty week, of the kind ScheduleTypes offers a schedule of.
         types = node.get_attribute_value(endpoint, Thermostat, Thermostat.Attributes.ScheduleTypes) or []
         offered = (t for t in types if int(t.systemMode) in modes and int(t.numberOfSchedules or 0) > 0)
         mode = next((modes[int(t.systemMode)] for t in offered), "unknown")
-        return Schedule(mode, ((),) * 7)
+        return Schedule(mode, ((),) * 7, handle)
     mode = modes.get(int(nest.systemMode), "unknown")
     week: list[dict[int, Setpoint]] = [{} for _ in range(7)]
     for t in nest.transitions:
@@ -332,7 +379,7 @@ def read(node: Any, endpoint: int = ENDPOINT) -> Schedule:
         for d in range(7):
             if int(t.dayOfWeek) & day_bit(d):
                 week[d][minute] = point
-    return Schedule(mode, tuple(tuple(day[m] for m in sorted(day)) for day in week))
+    return Schedule(mode, tuple(tuple(day[m] for m in sorted(day)) for day in week), handle)
 
 
 async def _call(request: Any) -> Any:

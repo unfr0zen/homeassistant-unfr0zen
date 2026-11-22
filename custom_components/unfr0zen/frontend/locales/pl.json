@@ -86,7 +86,7 @@
   "period_needs_times": "Każdy okres wymaga godziny włączenia i wyłączenia.",
   "period_to_itself": "Okres od {time} do tej samej godziny.",
   "periods_overlap": "Okresy nakładają się.",
-  "mode_changed": "Nest zmienił tryb od otwarcia: zamknij i edytuj ponownie.",
+  "mode_changed": "Aktywny harmonogram się zmienił. Przed zapisaniem zamknij edytor i otwórz go ponownie.",
   "drag_edge_hint": "Przeciągnij, aby zmienić tę godzinę",
   "drag_move_hint": "Przeciągnij, aby przesunąć, zachowując długość"
 }

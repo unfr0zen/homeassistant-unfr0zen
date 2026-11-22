@@ -86,7 +86,7 @@
   "period_needs_times": "Každé období potřebuje čas zapnutí a vypnutí.",
   "period_to_itself": "Období od {time} do téhož času.",
   "periods_overlap": "Období se překrývají.",
-  "mode_changed": "Nest od otevření změnil režim: zavřete editor a upravte znovu.",
+  "mode_changed": "Aktivní plán se změnil. Před uložením zavřete editor a znovu ho otevřete.",
   "drag_edge_hint": "Přetažením změníte tento čas",
   "drag_move_hint": "Přetažením přesunete, délka zůstane"
 }

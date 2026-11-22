@@ -193,7 +193,7 @@ async def test_set_schedule_replaces_the_named_days_in_one_write(hass, unit):
         {"mon": [{"time": "22:30", "temp": 17}, {"time": "07:00", "temp": 21.2}], "sat": []},
     )
     assert written(unit, "heating_times") == [
-        {"mon": [{"time": "07:00", "temp": 21.0}, {"time": "22:30", "temp": 17.0}], "sat": []}
+        {"mon": [{"time": "07:00", "temp": 21.2}, {"time": "22:30", "temp": 17.0}], "sat": []}
     ]
 
 

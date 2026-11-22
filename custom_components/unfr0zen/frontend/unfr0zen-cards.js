@@ -662,8 +662,8 @@ class ScheduleCard extends HTMLElement {
     const draft = {};
     for (const name of DAYS) draft[name] = this._rowsOf(week[name] ?? []);
     const today = this._now.day;
-    // The schedule's kind, as drafted: a save once the Nest has changed mode would go to another schedule.
-    this._editor = { mode: state.attributes.mode, day: today, draft, original: JSON.parse(JSON.stringify(draft)), copy: new Set(), copying: false, error: null, saving: false };
+    // A mode or handle change selects a different week from the one being edited.
+    this._editor = { mode: state.attributes.mode, handle: state.attributes.schedule_handle, day: today, draft, original: JSON.parse(JSON.stringify(draft)), copy: new Set(), copying: false, error: null, saving: false };
     this._renderEditor();
     const dialog = this.shadowRoot.querySelector("dialog");
     if (!dialog.open) dialog.showModal();
@@ -890,7 +890,7 @@ class ScheduleCard extends HTMLElement {
     const e = this._editor;
     const days = this._changes();
     if (!Object.keys(days).length) return;
-    if (this._state?.attributes.mode !== e.mode) {
+    if (this._state?.attributes.mode !== e.mode || this._state?.attributes.schedule_handle !== e.handle) {
       e.error = t("mode_changed");
       return this._renderEditor();
     }

@@ -86,7 +86,7 @@
   "period_needs_times": "Chaque période a besoin d'une heure de marche et d'une heure d'arrêt.",
   "period_to_itself": "Une période qui va de {time} à la même heure.",
   "periods_overlap": "Des périodes se chevauchent.",
-  "mode_changed": "Le Nest a changé de mode depuis l'ouverture : fermez et modifiez à nouveau.",
+  "mode_changed": "Le programme actif a changé. Fermez l’éditeur et rouvrez-le avant d’enregistrer.",
   "drag_edge_hint": "Faites glisser pour changer cette heure",
   "drag_move_hint": "Faites glisser pour déplacer, sans changer la durée"
 }

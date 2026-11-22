@@ -115,7 +115,7 @@ next time.
 - **Add a change:** a new event that repeats weekly with no end, at the time it should start, titled with the
   temperature (or the low and high). It may repeat on several days; its end is ignored, as the next setpoint ends it.
 - **Edit or delete** one occurrence and the whole series changes: the Nest's schedule is the same every week.
-- Writing the schedule turns off the Nest's Auto-Schedule, so it doesn't learn over your changes.
+- Schedule edits keep the Nest's Auto-Schedule setting. Switch learning off to keep a manually programmed week fixed.
 
 ### Hot water
 
@@ -128,8 +128,10 @@ next time.
 | | Heating, cooling or heat-cool | Hot water |
 |-|-|-|
 | Per day | 10 setpoints | 6 periods |
-| Temperatures | 4.5–35 °C (9–32 °C over Zigbee and Matter), in half degrees; a heat-cool high 1.5 °C or more above its low | — |
+| Temperatures | 4.5–35 °C (9–32 °C over Zigbee and Matter), rounded by the thermostat to half °C or whole °F on its display scale; a heat-cool high 1.5 °C or more above its low | — |
 | Refused | one-off events, other repeats, all-day events | one-off events, other repeats, all-day events, overlapping periods |
+
+On firmware with named Matter schedules, the calendar edits the active week and preserves the other schedules. A day held solely by a midnight continuation shows that target at 00:00. New temperatures follow the thermostat’s scale (half °C or whole °F).
 
 Matter supports up to 56 distinct heat-cool transitions per week. The same time, low and high on several days count once.
 
