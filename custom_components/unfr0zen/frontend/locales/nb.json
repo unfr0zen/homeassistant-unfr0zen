@@ -86,5 +86,7 @@
   "period_needs_times": "Hver periode trenger et på- og et av-klokkeslett.",
   "period_to_itself": "En periode fra {time} til seg selv.",
   "periods_overlap": "Periodene overlapper.",
-  "mode_changed": "Nest har byttet modus siden du åpnet dette: lukk og rediger på nytt."
+  "mode_changed": "Nest har byttet modus siden du åpnet dette: lukk og rediger på nytt.",
+  "drag_edge_hint": "Dra for å endre dette tidspunktet",
+  "drag_move_hint": "Dra for å flytte, lengden beholdes"
 }

@@ -86,5 +86,7 @@
   "period_needs_times": "Each period needs an on and an off time.",
   "period_to_itself": "A period from {time} to itself.",
   "periods_overlap": "Periods overlap.",
-  "mode_changed": "The Nest changed mode since you opened this: close it and edit again."
+  "mode_changed": "The Nest changed mode since you opened this: close it and edit again.",
+  "drag_edge_hint": "Drag to change this time",
+  "drag_move_hint": "Drag to move, keeping its length"
 }

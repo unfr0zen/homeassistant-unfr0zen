@@ -86,5 +86,7 @@
   "period_needs_times": "Elke periode heeft een aan- en een uittijd nodig.",
   "period_to_itself": "Een periode van {time} naar dezelfde tijd.",
   "periods_overlap": "Periodes overlappen.",
-  "mode_changed": "De Nest is van modus gewisseld sinds je dit opende: sluit en bewerk opnieuw."
+  "mode_changed": "De Nest is van modus gewisseld sinds je dit opende: sluit en bewerk opnieuw.",
+  "drag_edge_hint": "Sleep om deze tijd te wijzigen",
+  "drag_move_hint": "Sleep om te verplaatsen, de duur blijft gelijk"
 }

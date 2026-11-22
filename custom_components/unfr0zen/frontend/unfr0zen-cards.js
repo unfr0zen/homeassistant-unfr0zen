@@ -16,6 +16,8 @@ const DAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"];
 const DAY = 24 * 60;
 const WEEK = 7 * DAY;
 const DOCS = "https://github.com/unfr0zen/homeassistant-unfr0zen";
+/** A drag's times fall on this grid, and keep slots at least this long, in minutes. */
+const SNAP = 15;
 
 // ----- Words -----
 
@@ -149,6 +151,21 @@ function when(now, day, minute, ahead) {
   if (day === now.day && ahead < DAY) return t("when_at", { time: hhmm(minute) });
   if (day === (now.day + 1) % 7 && ahead < 2 * DAY) return t("when_tomorrow", { time: hhmm(minute) });
   return t("when_day", { day: dayName(day), time: hhmm(minute) });
+}
+
+/** `value` within lo..hi, widened to take in `was`: what already stands is never pushed out. */
+function bound(value, lo, hi, was) {
+  return Math.min(Math.max(value, Math.min(lo, was)), Math.max(hi, was));
+}
+
+/** A drag's minutes on the grid. */
+function snap(minutes) {
+  return Math.round(minutes / SNAP) * SNAP;
+}
+
+/** A position along a day's bar. */
+function along(minute) {
+  return `${(minute / DAY) * 100}%`;
 }
 
 function escapeHtml(text) {
@@ -455,6 +472,19 @@ const STYLES = `
   .row.range { flex-wrap: wrap; row-gap: 8px; }
   .row.range .steppers { flex-basis: 100%; display: flex; justify-content: space-between; gap: 8px; }
   .seg.divided { box-shadow: inset 2px 0 0 var(--u0-surface); }
+  .handles { position: absolute; inset: 0; z-index: 3; }
+  .grab, .edge { position: absolute; top: 0; bottom: 0; touch-action: none; user-select: none; }
+  .grab { cursor: grab; }
+  .edge { transform: translateX(-50%); cursor: ew-resize; z-index: 1; }
+  .edge::after {
+    content: ""; position: absolute; left: 50%; margin-left: -1px; top: 5px; bottom: 5px; width: 2px; border-radius: 1px;
+    background: #fff; box-shadow: 0 0 0 1px rgba(0,0,0,.35); opacity: 0; transition: opacity .12s;
+  }
+  .bar:hover .edge::after { opacity: .55; }
+  .edge:hover::after, .edge.active::after { opacity: 1; }
+  .grab:hover, .grab.active { background: rgba(255,255,255,.12); }
+  .dragging, .dragging * { cursor: grabbing; user-select: none; }
+  .dragging .edge.active, .dragging:has(.edge.active) * { cursor: ew-resize; }
   .round {
     width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--u0-card); color: var(--u0-text);
     display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font: inherit;
@@ -571,9 +601,15 @@ class ScheduleCard extends HTMLElement {
         }),
       );
       this.shadowRoot.addEventListener("focusin", (e) => e.target.matches?.("input") && e.target.select());
-      this.shadowRoot.querySelector("dialog").addEventListener("close", () => {
+      const dialog = this.shadowRoot.querySelector("dialog");
+      dialog.addEventListener("close", () => {
         this._editor = null;
+        this._drag = null;
       });
+      dialog.addEventListener("pointerdown", (e) => this._dragStart(e));
+      dialog.addEventListener("pointermove", (e) => this._dragMove(e));
+      dialog.addEventListener("pointerup", (e) => this._dragEnd(e));
+      dialog.addEventListener("pointercancel", (e) => this._dragEnd(e));
     }
     const card = this.shadowRoot.querySelector("ha-card");
     const state = this._state;
@@ -690,14 +726,14 @@ class ScheduleCard extends HTMLElement {
     const focused = this.shadowRoot.activeElement?.dataset;
     const field = focused?.part ? `input[data-field="${focused.field}"][data-part="${focused.part}"][data-row="${focused.row}"]` : null;
     dialog.innerHTML = `
-      <div class="panel" role="document">
+      <div class="panel${this._drag ? " dragging" : ""}" role="document">
         <div class="panel-head">
           <span class="panel-title">${escapeHtml(this._title())}</span>
           <button class="icon-button" data-action="close" aria-label="${t("close")}" title="${t("close_hint")}"><ha-icon icon="mdi:close"></ha-icon></button>
         </div>
         <div class="tabs">${tabs}</div>
         <div class="day-head"><span class="day-name">${dayName(e.day, "long")}</span><span class="carry">${this._carryText(week, e.day)}</span></div>
-        <div class="bar">${this._dayBarHtml(week, e.day, false)}</div>
+        <div class="bar">${this._dayBarHtml(week, e.day, false)}${this._handlesHtml(problems)}</div>
         ${this._axis(false)}
         <div class="rows">
           ${rows.map((r, i) => this._rowHtml(r, i, problems.get(`${name}:${i}`))).join("")}
@@ -779,6 +815,74 @@ class ScheduleCard extends HTMLElement {
     e.error = null;
     if (this._pressing) this._redraw = true;
     else this._renderEditor();
+  }
+
+  // --- Dragging on the day's bar: an edge changes a time, the middle moves the slot ---
+
+  _active(drag, row, owner) {
+    return this._drag?.id === `${drag}:${owner}:${row}` ? " active" : "";
+  }
+
+  /** A slot's middle, which moves it whole. */
+  _grab(row, left, width) {
+    const owner = DAYS[this._editor.day];
+    return `<div class="grab${this._active("move", row, owner)}" data-drag="move" data-row="${row}" data-day="${owner}"
+      style="left:${along(left)};width:${along(width)}" title="${t("drag_move_hint")}"></div>`;
+  }
+
+  /** An edge, which changes one time: 14 px, at most half the shortest slot it borders that has a middle to grab. */
+  _edge(drag, row, at, room, owner = DAYS[this._editor.day]) {
+    const width = room ? `min(14px, ${along(room / 2)})` : "14px";
+    return `<div class="edge${this._active(drag, row, owner)}" data-drag="${drag}" data-row="${row}" data-day="${owner}"
+      style="left:${along(at)};width:${width}" title="${t("drag_edge_hint")}"></div>`;
+  }
+
+  /** A drag of the time `was` to the grid's points within lo..hi, each given to `set`; null when it has nowhere to go. */
+  _mover(was, lo, hi, set) {
+    const first = Math.ceil(lo / SNAP) * SNAP;
+    const last = Math.floor(hi / SNAP) * SNAP;
+    if (first > last || (first === last && first === was)) return null;
+    return (delta) => {
+      // Where it was until the pointer has moved half a step: a time off the grid stays as it is.
+      const m = Math.abs(delta) < SNAP / 2 ? was : bound(snap(was + delta), first, last, was);
+      set(m);
+      return m;
+    };
+  }
+
+  _dragStart(event) {
+    const target = event.target.closest?.("[data-drag]");
+    if (!target || event.button !== 0 || !this._editor || this._editor.saving || this._drag) return;
+    const { drag, row, day } = target.dataset;
+    // A time being typed counts before the drag: it is in the draft the drag starts from.
+    const field = this.shadowRoot.activeElement;
+    if (field?.matches?.("input[data-field]")) {
+      this._change({ target: field });
+      this.shadowRoot.activeElement?.blur();
+    }
+    const apply = this._dragger(drag, Number(row), day);
+    if (!apply) return;
+    event.preventDefault();
+    this.shadowRoot.querySelector("dialog").setPointerCapture(event.pointerId);
+    const width = this.shadowRoot.querySelector("dialog .bar").getBoundingClientRect().width;
+    this._drag = { id: `${drag}:${day}:${row}`, pointer: event.pointerId, x: event.clientX, width, apply, last: null };
+    this._renderEditor();
+  }
+
+  _dragMove(event) {
+    const d = this._drag;
+    if (!d || event.pointerId !== d.pointer || !this._editor) return;
+    const key = d.apply(((event.clientX - d.x) / d.width) * DAY);
+    if (key === d.last) return;
+    d.last = key;
+    this._editor.error = null;
+    this._renderEditor();
+  }
+
+  _dragEnd(event) {
+    if (!this._drag || event.pointerId !== this._drag.pointer) return;
+    this._drag = null;
+    this._renderEditor();
   }
 
   async _save() {
@@ -1011,6 +1115,73 @@ class Unfr0zenHeatingCard extends ScheduleCard {
       <button class="icon-button" data-action="remove" data-row="${i}" aria-label="${t("remove")}" title="${t("remove")}"><ha-icon icon="mdi:trash-can-outline"></ha-icon></button>
       ${this._range ? steppers : ""}
     </div>`;
+  }
+
+  /** The shown day's changes by time, [{i, m}]; null while a time is missing or doubled. */
+  _timeline() {
+    const e = this._editor;
+    const list = e.draft[DAYS[e.day]].map((r, i) => ({ i, m: toMinutes(r.time) }));
+    if (list.some((x) => x.m === null) || new Set(list.map((x) => x.m)).size !== list.length) return null;
+    return list.sort((a, b) => a.m - b.m);
+  }
+
+  /** An edge at each change; the middle of each slot between two of the day's changes. */
+  _handlesHtml() {
+    const list = this._timeline();
+    if (!list?.length) return "";
+    const grabs = list
+      .slice(0, -1)
+      .map((a, k) => this._grab(a.i, a.m, list[k + 1].m - a.m))
+      .join("");
+    const edges = list
+      .map((x, k) => {
+        // The slots either side with a middle: the day's first and last run to midnight without one.
+        const sides = [k > 0 ? x.m - list[k - 1].m : 0, k + 1 < list.length ? list[k + 1].m - x.m : 0].filter(Boolean);
+        return this._edge("edge", x.i, x.m, sides.length ? Math.min(...sides) : 0);
+      })
+      .join("");
+    return `<div class="handles">${grabs}${edges}</div>`;
+  }
+
+  /** The nearest changes on other days, in minutes from midnight, on the shown day and each it is copied to: the
+   * latest last change before it, and the earliest first change after. */
+  _around() {
+    const e = this._editor;
+    const points = setpoints(this._effective());
+    const days = [e.day, ...[...e.copy].map((name) => DAYS.indexOf(name))];
+    let before = -Infinity;
+    let after = Infinity;
+    for (const day of days) {
+      const others = points.filter((p) => p.day !== day);
+      const ahead = (p) => ((p.day - day + 7) % 7) * DAY + p.minute;
+      before = Math.max(before, ...others.map((p) => ahead(p) - WEEK));
+      after = Math.min(after, ...others.map(ahead));
+    }
+    return { before, after };
+  }
+
+  /** A change's time between its neighbours', SNAP apart; a slot moved whole, its neighbours taking up the difference. */
+  _dragger(drag, row) {
+    const rows = this._editor.draft[DAYS[this._editor.day]];
+    const list = this._timeline();
+    const k = list?.findIndex((x) => x.i === row) ?? -1;
+    if (k < 0) return null;
+    // Midnight's slot runs on from the day before's last change, and the day's last into the next day's first.
+    const { before: carried, after: next } = this._around();
+    const lo = k > 0 ? list[k - 1].m + SNAP : Math.max(0, carried + SNAP);
+    const hiAfter = (j) => (j < list.length ? list[j].m - SNAP : Math.min(DAY - SNAP, next - SNAP));
+    if (drag === "edge") {
+      return this._mover(list[k].m, lo, hiAfter(k + 1), (m) => {
+        rows[row].time = hhmm(m);
+      });
+    }
+    const [a, b] = [list[k], list[k + 1]];
+    if (!b) return null;
+    const length = b.m - a.m;
+    return this._mover(a.m, lo, hiAfter(k + 2) - length, (m) => {
+      rows[a.i].time = hhmm(m);
+      rows[b.i].time = hhmm(m + length);
+    });
   }
 
   _step(row, by, which = "temp") {
@@ -1284,6 +1455,128 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
       <span class="grow"></span>
       <button class="icon-button" data-action="remove" data-row="${i}" aria-label="${t("remove")}" title="${t("remove")}"><ha-icon icon="mdi:trash-can-outline"></ha-icon></button>
     </div>`;
+  }
+
+  /** The week's periods as saved, as spans of the week: {name, i, day, start, end}. */
+  _spans() {
+    const week = this._effective();
+    const out = [];
+    DAYS.forEach((name, day) =>
+      week[name].forEach((r, i) => {
+        const on = toMinutes(r.on);
+        const off = toMinutes(r.off);
+        const length = on === null || off === null ? 0 : (off - on + DAY) % DAY;
+        if (length) out.push({ name, i, day, start: day * DAY + on, end: day * DAY + on + length });
+      }),
+    );
+    return out;
+  }
+
+  /** Each of the shown day's periods: an edge at its on and off, and its middle; the off of one from an earlier day
+   * that ends in this one. None while the week has a problem. */
+  _handlesHtml(problems) {
+    if (problems.size) return "";
+    const e = this._editor;
+    const shown = DAYS[e.day];
+    const from = e.day * DAY;
+    // Each block in the bar, [on, off) from the shown day's midnight, with whose it is.
+    const blocks = this._spans().flatMap((s) =>
+      [-1, 0]
+        .map((k) => ({ s, on: s.start + k * WEEK - from, off: s.end + k * WEEK - from }))
+        .filter((b) => b.off > 0 && b.on < DAY),
+    );
+    const own = blocks.filter((b) => b.s.name === shown);
+    const length = (b) => Math.min(b.off, DAY) - Math.max(b.on, 0);
+    // An edge another of the day's periods shares: as narrow as the shorter of the two.
+    const room = (b, at) => Math.min(length(b), ...own.filter((o) => o !== b && (o.on === at || o.off === at)).map(length));
+    const html = blocks.map(({ s, on, off }, n) => {
+      const b = blocks[n];
+      if (s.name === shown) {
+        return (
+          this._grab(s.i, on, length(b)) +
+          this._edge("on", s.i, on, room(b, on)) +
+          (off <= DAY ? this._edge("off", s.i, off, room(b, off)) : "")
+        );
+      }
+      // From an earlier day, unless that day is the shown one's copy.
+      // Sized against the day's period starting where it ends, which has a middle to grab.
+      const next = own.filter((o) => o.on === off).map(length);
+      return on < 0 && !e.copy.has(s.name) ? this._edge("off", s.i, off, next.length ? Math.min(...next) : 0, s.name) : "";
+    });
+    return `<div class="handles">${html.join("")}</div>`;
+  }
+
+  /** An on or off time up to the neighbouring period, or with it when they touch; a period moved whole within the gap
+   * around it. Each day the shown one is copied to has the same room. A period stays under a day, its on in its day. */
+  _dragger(drag, row, owner) {
+    const e = this._editor;
+    const shown = DAYS[e.day];
+    owner = owner ?? shown;
+    if (owner !== shown && e.copy.has(owner)) return null;
+    const spans = this._spans();
+    const span = spans.find((s) => s.name === owner && s.i === row);
+    if (!span) return null;
+    // A row's periods: on its own day and, for the shown day's, each day it is copied to.
+    const copies = (s) => spans.filter((o) => o.i === s.i && (o.name === s.name || (s.name === shown && e.copy.has(o.name))));
+    // The nearest periods that stay, before and after, a week either side too.
+    const nearest = (target, moving) => {
+      const still = spans
+        .filter((o) => !moving.includes(o))
+        .flatMap((o) => [-1, 0, 1].map((k) => ({ ...o, k, os: o.start + k * WEEK, oe: o.end + k * WEEK })));
+      return {
+        prev: still.filter((o) => o.oe <= target.start).sort((a, b) => b.oe - a.oe)[0],
+        next: still.filter((o) => o.os >= target.end).sort((a, b) => a.os - b.os)[0],
+      };
+    };
+    const mine = copies(span);
+    const { prev, next } = nearest(span, mine);
+    // How far back and ahead every copy can go.
+    const room = () => {
+      let back = -Infinity;
+      let ahead = Infinity;
+      for (const c of mine) {
+        const n = nearest(c, mine);
+        back = Math.max(back, (n.prev?.oe ?? -Infinity) - c.start);
+        ahead = Math.min(ahead, (n.next?.os ?? Infinity) - c.end);
+      }
+      return { back, ahead };
+    };
+    // A touching period follows the edge: one on the row's day, its copies beside the row's; or one elsewhere when
+    // neither has copies.
+    const follows = (o) =>
+      o && (o.name === shown || !e.copy.has(o.name)) && (o.name === owner || (mine.length === 1 && copies(o).length === 1));
+    const firstOn = (s, k = 0) => s.day * DAY + k * WEEK;
+    const write = (s, start, end, k = 0) => {
+      const r = e.draft[s.name][s.i];
+      r.on = hhmm(start - firstOn(s, k));
+      r.off = hhmm(((end % DAY) + DAY) % DAY);
+    };
+    const { start, end } = span;
+    const day = firstOn(span);
+    const longest = DAY - SNAP;
+    if (drag === "on") {
+      const shared = prev?.oe === start && follows(prev);
+      const lo = Math.max(day, end - longest, shared ? prev.os + SNAP : start + room().back);
+      const hi = Math.min(day + DAY - SNAP, end - SNAP, shared ? prev.os + longest : Infinity);
+      return this._mover(start, lo, hi, (m) => {
+        write(span, m, end);
+        if (shared) write(prev, prev.os, m, prev.k);
+      });
+    }
+    if (drag === "off") {
+      const shared = next?.os === end && follows(next);
+      const nextDay = shared ? firstOn(next, next.k) : 0;
+      const lo = Math.max(start + SNAP, shared ? Math.max(next.oe - longest, nextDay) : -Infinity);
+      const hi = Math.min(start + longest, shared ? Math.min(next.oe - SNAP, nextDay + DAY - SNAP) : end + room().ahead);
+      return this._mover(end, lo, hi, (m) => {
+        write(span, start, m);
+        if (shared) write(next, m, next.oe, next.k);
+      });
+    }
+    const { back, ahead } = room();
+    return this._mover(start, Math.max(day, start + back), Math.min(day + DAY - SNAP, start + ahead), (m) =>
+      write(span, m, m + end - start),
+    );
   }
 
   _newRow(rows) {

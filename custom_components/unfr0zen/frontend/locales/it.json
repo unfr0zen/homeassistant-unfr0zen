@@ -86,5 +86,7 @@
   "period_needs_times": "Ogni periodo richiede un orario di accensione e uno di spegnimento.",
   "period_to_itself": "Un periodo che inizia e finisce alle {time}.",
   "periods_overlap": "I periodi si sovrappongono.",
-  "mode_changed": "Il Nest ha cambiato modalità da quando hai aperto: chiudi e modifica di nuovo."
+  "mode_changed": "Il Nest ha cambiato modalità da quando hai aperto: chiudi e modifica di nuovo.",
+  "drag_edge_hint": "Trascina per cambiare questo orario",
+  "drag_move_hint": "Trascina per spostare, mantenendo la durata"
 }

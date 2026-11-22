@@ -86,5 +86,7 @@
   "period_needs_times": "Hver periode skal have et tænd- og et sluktidspunkt.",
   "period_to_itself": "En periode fra {time} til sig selv.",
   "periods_overlap": "Perioderne overlapper.",
-  "mode_changed": "Nest har skiftet tilstand, siden du åbnede dette: luk og rediger igen."
+  "mode_changed": "Nest har skiftet tilstand, siden du åbnede dette: luk og rediger igen.",
+  "drag_edge_hint": "Træk for at ændre dette tidspunkt",
+  "drag_move_hint": "Træk for at flytte, længden bevares"
 }

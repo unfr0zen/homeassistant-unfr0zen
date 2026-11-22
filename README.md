@@ -170,6 +170,9 @@ entity: calendar.nest_thermostat_hot_water_schedule
   its on/off switch.
 - **Edit schedule** opens a day at a time: change, add or remove setpoints or periods, copy a day to others, and save;
   the Nest takes the days changed in one write.
+- **Drag on the day's bar** to change times, in steps of 15 minutes. An edge changes one time; where two slots meet,
+  both follow it. The middle of a slot moves it whole, keeping its length: a hot water period only as far as the free
+  time around it, a heating slot as far as its neighbours, which take up the difference, can keep 15 minutes.
 
 <p align="center">
   <img src="docs/images/heating-editor.png" alt="Editing a day of the heating schedule" width="400">

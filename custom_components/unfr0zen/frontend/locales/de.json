@@ -86,5 +86,7 @@
   "period_needs_times": "Jeder Zeitraum braucht eine Ein- und eine Ausschaltzeit.",
   "period_to_itself": "Ein Zeitraum von {time} bis zur selben Zeit.",
   "periods_overlap": "Zeiträume überschneiden sich.",
-  "mode_changed": "Das Nest hat seit dem Öffnen den Modus gewechselt: schließen und erneut bearbeiten."
+  "mode_changed": "Das Nest hat seit dem Öffnen den Modus gewechselt: schließen und erneut bearbeiten.",
+  "drag_edge_hint": "Ziehen, um diese Zeit zu ändern",
+  "drag_move_hint": "Ziehen zum Verschieben, die Dauer bleibt"
 }

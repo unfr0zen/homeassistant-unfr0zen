@@ -86,5 +86,7 @@
   "period_needs_times": "每个时段都需要开启和关闭时间。",
   "period_to_itself": "从 {time} 到其自身的时段。",
   "periods_overlap": "时段重叠。",
-  "mode_changed": "打开后 Nest 已切换模式：请关闭后重新编辑。"
+  "mode_changed": "打开后 Nest 已切换模式：请关闭后重新编辑。",
+  "drag_edge_hint": "拖动以更改此时间",
+  "drag_move_hint": "拖动以移动，时长不变"
 }
