@@ -162,6 +162,9 @@
     "nestlocal_too_old": {
       "message": "nestlocal is te oud voor het Matter-schema: werk het bij"
     },
+    "nestlocal_too_old_mqtt": {
+      "message": "nestlocal te oud voor schema's via MQTT: werk het bij"
+    },
     "matter_failed": {
       "message": "Matter: {error}"
     },

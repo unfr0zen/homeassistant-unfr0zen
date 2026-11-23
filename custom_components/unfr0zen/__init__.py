@@ -136,6 +136,7 @@ def hot_water_backend_for(hass: HomeAssistant, data: dict) -> HotWaterBackend | 
 async def _start(entry: ScheduleConfigEntry, coordinator: ScheduleCoordinator) -> None:
     try:
         entry.async_on_unload(await coordinator.backend.async_start(coordinator.async_set_updated_data))
+        coordinator.backend.request_refresh = coordinator.async_request_refresh
     except HomeAssistantError as err:
         # The integration the unit is reached through may still be starting.
         raise ConfigEntryNotReady(str(err)) from err

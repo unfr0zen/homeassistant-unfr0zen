@@ -162,6 +162,9 @@
     "nestlocal_too_old": {
       "message": "nestlocal too old for the Matter schedule: update it"
     },
+    "nestlocal_too_old_mqtt": {
+      "message": "nestlocal too old for schedules over MQTT: update it"
+    },
     "matter_failed": {
       "message": "Matter: {error}"
     },

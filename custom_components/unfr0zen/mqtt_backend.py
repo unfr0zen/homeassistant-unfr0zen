@@ -104,11 +104,46 @@ class NestlocalBackend(_MqttBackend):
     def __init__(self, hass: HomeAssistant, base: str) -> None:
         super().__init__(hass, f"{base}/{self.key}")
         self.base = base
+        # False once the unit's state says its firmware has no schedules:
+        # one it ran before may have left a retained schedule it no longer
+        # updates. Firmware with them says "schedules": true.
+        self.supported = True
+        self._state_unsubscribe: Callable[[], None] | None = None
+
+    async def _subscribe(self) -> None:
+        if self._state_unsubscribe is None:
+            await mqtt.async_wait_for_mqtt_client(self.hass)
+            self._state_unsubscribe = await mqtt.async_subscribe(self.hass, f"{self.base}/state", self._state)
+        await super()._subscribe()
+
+    @callback
+    def _stop(self) -> None:
+        if self._state_unsubscribe is not None:
+            self._state_unsubscribe()
+            self._state_unsubscribe = None
+        super()._stop()
+
+    @callback
+    def _state(self, msg: mqtt.ReceiveMessage) -> None:
+        try:
+            supported = json.loads(msg.payload).get("schedules") is True
+        except ValueError, AttributeError, TypeError:
+            return
+        if supported == self.supported:
+            return
+        self.supported = supported
+        if not supported:
+            self.latest = None
+            self.seen(None)
+            if self.request_refresh is not None:
+                self.hass.async_create_task(self.request_refresh())
 
     def value_of(self, payload: Any) -> Any:
-        return self.parse(payload)
+        return self.parse(payload) if self.supported else None
 
     async def async_read(self) -> Any:
+        if not self.supported:
+            raise error("nestlocal_too_old_mqtt")
         if self.latest is not None:
             return self.latest
         # The retained topic arrives on subscribing.

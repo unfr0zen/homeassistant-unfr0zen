@@ -162,6 +162,9 @@
     "nestlocal_too_old": {
       "message": "nestlocal 版本过旧，不支持 Matter 计划：请更新"
     },
+    "nestlocal_too_old_mqtt": {
+      "message": "nestlocal 版本过旧，无法通过 MQTT 使用日程：请更新"
+    },
     "matter_failed": {
       "message": "Matter：{error}"
     },

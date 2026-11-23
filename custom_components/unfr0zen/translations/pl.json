@@ -162,6 +162,9 @@
     "nestlocal_too_old": {
       "message": "nestlocal jest za stary dla harmonogramu Matter: zaktualizuj go"
     },
+    "nestlocal_too_old_mqtt": {
+      "message": "nestlocal jest za stary na harmonogramy przez MQTT: zaktualizuj go"
+    },
     "matter_failed": {
       "message": "Matter: {error}"
     },

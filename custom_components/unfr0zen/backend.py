@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import datetime as dt
+from typing import Any
 
 from homeassistant.core import HomeAssistant
 
@@ -19,6 +20,9 @@ class Backend:
 
     # How often to read the schedule; None when the unit pushes it.
     poll: dt.timedelta | None = None
+    # Asks the schedule's coordinator to read again, once started: a backend
+    # that learns its schedule can't be trusted has the read fail.
+    request_refresh: Callable[[], Any] | None = None
 
     def __init__(self, hass: HomeAssistant) -> None:
         self.hass = hass

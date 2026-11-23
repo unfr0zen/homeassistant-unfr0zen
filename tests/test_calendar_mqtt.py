@@ -223,3 +223,20 @@ async def test_a_range_schedule_has_lows_and_highs(hass, calendar, hass_ws_clien
         reply = await client.receive_json()
         assert not reply["success"]
         assert message in reply["error"]["message"], title
+
+
+async def test_a_schedule_left_by_older_firmware_is_unavailable(hass, calendar):
+    assert hass.states.get(ENTITY).state != "unavailable"
+    # Firmware without schedules: its state has no "schedules", and the
+    # retained heating_times is what an earlier one left behind.
+    async_fire_mqtt_message(hass, f"{BASE}/state", json.dumps({"mode": "heat"}), retain=True)
+    for _ in range(100):
+        await asyncio.sleep(0.01)
+        if hass.states.get(ENTITY).state == "unavailable":
+            break
+    assert hass.states.get(ENTITY).state == "unavailable"
+    # Updated: the state says so, and the schedule counts again.
+    async_fire_mqtt_message(hass, f"{BASE}/state", json.dumps({"mode": "heat", "schedules": True}))
+    async_fire_mqtt_message(hass, f"{BASE}/heating_times", json.dumps(week(mon=[("06:00", 20)])))
+    await hass.async_block_till_done()
+    assert hass.states.get(ENTITY).state != "unavailable"

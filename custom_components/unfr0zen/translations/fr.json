@@ -162,6 +162,9 @@
     "nestlocal_too_old": {
       "message": "nestlocal est trop ancien pour le programme Matter : mettez-le à jour"
     },
+    "nestlocal_too_old_mqtt": {
+      "message": "nestlocal trop ancien pour les programmes via MQTT : mettez-le à jour"
+    },
     "matter_failed": {
       "message": "Matter : {error}"
     },

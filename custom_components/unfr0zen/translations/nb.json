@@ -162,6 +162,9 @@
     "nestlocal_too_old": {
       "message": "nestlocal er for gammel for Matter-timeplanen: oppdater den"
     },
+    "nestlocal_too_old_mqtt": {
+      "message": "nestlocal for gammel for tidsplaner via MQTT: oppdater den"
+    },
     "matter_failed": {
       "message": "Matter: {error}"
     },
