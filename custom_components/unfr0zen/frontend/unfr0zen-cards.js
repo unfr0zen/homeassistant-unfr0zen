@@ -79,6 +79,11 @@ function useLanguage(tag) {
 }
 
 /** A string in the cards' language, its {placeholders} filled in from `values`. */
+/** Whether a calendar's entity can't reach its thermostat: the card shows it so, not an empty week. */
+function unavailable(state) {
+  return !state || state.state === "unavailable";
+}
+
 function t(key, values = {}) {
   const text = STRINGS[language]?.[key] ?? STRINGS.en?.[key] ?? key;
   return text.replace(/\{(\w+)\}/g, (all, name) => (name in values ? String(values[name]) : all));
@@ -776,7 +781,7 @@ class ScheduleCard extends HTMLElement {
   }
 
   _editable(state) {
-    return state.attributes.writable !== false;
+    return !unavailable(state) && state.attributes.writable !== false;
   }
 
   /** The header's button that opens the editor on today. */
@@ -1196,17 +1201,18 @@ class Unfr0zenHeatingCard extends ScheduleCard {
     const now = this._now;
     const warmth = this._warmth(points);
     const { current, next } = heatingNow(points, now);
-    let subtitle = t("no_schedule");
-    if (current) {
+    const away = unavailable(state);
+    let subtitle = t(away ? "unavailable" : "no_schedule");
+    if (current && !away) {
       subtitle = t("set_to", { temps: temps(current) });
       if (next) subtitle += ` · ${t("next_change", { temps: temps(next), when: when(now, next.day, next.minute, next.ahead) })}`;
     }
     const rows = DAYS.map((_, day) => {
       const today = day === now.day;
       const marker = today ? `<div class="now" style="left:${(now.minute / DAY) * 100}%"></div>` : "";
-      const bar = points.length
+      const bar = points.length && !away
         ? this._segmentsHtml(points, day, true, warmth)
-        : `<span class="empty">${t("no_setpoints")}</span>`;
+        : `<span class="empty">${t(away ? "unavailable" : "no_setpoints")}</span>`;
       return `<div class="day${today ? " today" : ""}"${this._opens(state, day)}>${dayName(day)}</div>
         <div class="bar${today ? " today" : ""}"${this._opens(state, day)}>${bar}${marker}</div>`;
     }).join("");
@@ -1498,6 +1504,8 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
       subtitle = next ? `${state} · ${next}` : state;
     }
     if (boost.active) subtitle = boost.minutes ? t("boosting_for", { duration: duration(boost.minutes) }) : t("boosting");
+    const away = unavailable(state);
+    if (away) subtitle = t("unavailable");
     const active = this._related().active;
     const heating = active && this._hass.states[active]?.state === "on"
       ? `<div class="heating-now"><ha-icon icon="mdi:fire"></ha-icon>${t("heating_now")}</div>`
@@ -1506,7 +1514,7 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
       const today = day === now.day;
       const marker = today ? `<div class="now" style="left:${(now.minute / DAY) * 100}%"></div>` : "";
       return `<div class="day${today ? " today" : ""}"${this._opens(state, day)}>${dayName(day)}</div>
-        <div class="bar${today ? " today" : ""}"${this._opens(state, day)}>${this._blocksHtml(spans, day, true)}${marker}</div>`;
+        <div class="bar${today ? " today" : ""}"${this._opens(state, day)}>${away ? `<span class="empty">${t("unavailable")}</span>` : this._blocksHtml(spans, day, true)}${marker}</div>`;
     }).join("");
     return `
       <div class="head">

@@ -64,6 +64,7 @@
   "hot_water": "Varmvatten",
   "add_period": "Lägg till en period",
   "no_periods": "Inga perioder",
+  "unavailable": "Inte tillgänglig",
   "on": "På",
   "off": "Av",
   "on_until": "På till {time}",

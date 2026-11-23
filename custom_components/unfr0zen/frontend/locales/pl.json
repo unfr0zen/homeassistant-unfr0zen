@@ -64,6 +64,7 @@
   "hot_water": "Ciepła woda",
   "add_period": "Dodaj okres",
   "no_periods": "Brak okresów",
+  "unavailable": "Niedostępny",
   "on": "Wł.",
   "off": "Wył.",
   "on_until": "Włączona do {time}",

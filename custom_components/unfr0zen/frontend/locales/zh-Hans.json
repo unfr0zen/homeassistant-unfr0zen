@@ -64,6 +64,7 @@
   "hot_water": "热水",
   "add_period": "添加时段",
   "no_periods": "无时段",
+  "unavailable": "不可用",
   "on": "开启",
   "off": "关闭",
   "on_until": "开启至 {time}",

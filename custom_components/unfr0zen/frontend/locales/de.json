@@ -64,6 +64,7 @@
   "hot_water": "Warmwasser",
   "add_period": "Zeitraum hinzufügen",
   "no_periods": "Keine Zeiträume",
+  "unavailable": "Nicht verfügbar",
   "on": "Ein",
   "off": "Aus",
   "on_until": "Ein bis {time}",

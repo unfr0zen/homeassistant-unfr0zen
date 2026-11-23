@@ -64,6 +64,7 @@
   "hot_water": "Warm water",
   "add_period": "Periode toevoegen",
   "no_periods": "Geen periodes",
+  "unavailable": "Niet beschikbaar",
   "on": "Aan",
   "off": "Uit",
   "on_until": "Aan tot {time}",

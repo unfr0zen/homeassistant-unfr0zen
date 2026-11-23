@@ -64,6 +64,7 @@
   "hot_water": "Teplá voda",
   "add_period": "Přidat období",
   "no_periods": "Žádná období",
+  "unavailable": "Nedostupné",
   "on": "Zapnuto",
   "off": "Vypnuto",
   "on_until": "Zapnuto do {time}",

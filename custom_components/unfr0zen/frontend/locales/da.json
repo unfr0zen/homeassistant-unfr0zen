@@ -64,6 +64,7 @@
   "hot_water": "Varmt vand",
   "add_period": "Tilføj en periode",
   "no_periods": "Ingen perioder",
+  "unavailable": "Ikke tilgængelig",
   "on": "Til",
   "off": "Fra",
   "on_until": "Tændt indtil {time}",

@@ -64,6 +64,7 @@
   "hot_water": "Hot water",
   "add_period": "Add a period",
   "no_periods": "No periods",
+  "unavailable": "Unavailable",
   "on": "On",
   "off": "Off",
   "on_until": "On until {time}",
