@@ -395,3 +395,34 @@ async def test_matter_switches_found_by_their_labels(hass):
         "switch.nest_thermostat_switch_filter_17",
         "switch.nest_thermostat_switch_filter_16",
     )
+    # A mode select of boost lengths, named by its label alone, comes before the switch.
+    entities.async_get_or_create(
+        "select",
+        "matter",
+        "X-1-MatterNodeDevice-32-MatterModeSelect-80-3",
+        config_entry=matter_entry,
+        device_id=nest.id,
+        original_name="Hot water boost",
+        suggested_object_id="nest_thermostat_hot_water_boost",
+    )
+    assert _related(hass, nest)["hot_water_boost"] == "select.nest_thermostat_hot_water_boost"
+
+
+async def test_zha_switches_found_by_their_labels(hass):
+    zha_entry = MockConfigEntry(domain="zha")
+    zha_entry.add_to_hass(hass)
+    nest = dr.async_get(hass).async_get_or_create(
+        config_entry_id=zha_entry.entry_id, identifiers={("zha", "00:12:4b:00:12:34:56:78")}, name="Hallway"
+    )
+    for endpoint, label in [(17, "Hot water boost"), (18, "Hot water schedule")]:
+        er.async_get(hass).async_get_or_create(
+            "switch",
+            "zha",
+            f"00:12:4b:00:12:34:56:78-{endpoint}-16",
+            config_entry=zha_entry,
+            device_id=nest.id,
+            original_name=label,
+            suggested_object_id=f"hallway_{endpoint}",
+        )
+    related = _related(hass, nest)
+    assert (related["hot_water_switch"], related["hot_water_boost"]) == ("switch.hallway_18", "switch.hallway_17")

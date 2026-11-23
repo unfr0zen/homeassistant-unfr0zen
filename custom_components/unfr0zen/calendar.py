@@ -141,7 +141,7 @@ def _related(hass: HomeAssistant, device: dr.DeviceEntry) -> dict[str, str | Non
     """The unit's climate entity, hot water schedule switch, hot water
     sensor, boost and water heater, on its device; nestlocal's discovery ids
     end in their keys, Zigbee2MQTT's in their keys and `_zigbee2mqtt`, and
-    Matter's switches are named after their endpoints' labels."""
+    Matter's and ZHA's entities are named after their endpoints' labels."""
 
     def keyed(domain: str, *keys: str) -> str | None:
         for key in keys:
@@ -151,11 +151,12 @@ def _related(hass: HomeAssistant, device: dr.DeviceEntry) -> dict[str, str | Non
         return None
 
     def labelled(domain: str, label: str) -> str | None:
-        # Matter's are named after their endpoint's label: "Switch (Hot water schedule)".
-        return next(
-            (e.entity_id for e in entries if e.domain == domain and (e.original_name or "").endswith(f"({label})")),
-            None,
-        )
+        # Matter's switches are named "Switch (Hot water schedule)"; its mode
+        # selects and ZHA's switches by the label alone: "Hot water boost".
+        def named(name: str) -> bool:
+            return name == label or name.endswith(f"({label})")
+
+        return next((e.entity_id for e in entries if e.domain == domain and named(e.original_name or "")), None)
 
     entries = er.async_entries_for_device(er.async_get(hass), device.id)
     return {
@@ -163,8 +164,10 @@ def _related(hass: HomeAssistant, device: dr.DeviceEntry) -> dict[str, str | Non
         "hot_water_switch": keyed("switch", "hot_water_schedule") or labelled("switch", "Hot water schedule"),
         # nestlocal's hot_water_active, Zigbee2MQTT's hot_water.
         "hot_water_active": keyed("binary_sensor", "hot_water_active", "hot_water"),
-        # nestlocal's select of minutes, Zigbee2MQTT's switch of a fixed boost.
+        # A select of lengths (nestlocal's, Zigbee2MQTT's, Matter's) before a
+        # switch of a fixed boost.
         "hot_water_boost": keyed("select", "hot_water_boost")
+        or labelled("select", "Hot water boost")
         or keyed("switch", "hot_water_boost")
         or labelled("switch", "Hot water boost"),
         "water_heater": next((e.entity_id for e in entries if e.domain == "water_heater"), None),
