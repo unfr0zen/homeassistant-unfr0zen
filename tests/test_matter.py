@@ -177,9 +177,10 @@ async def test_a_change_on_the_unit_pushes_the_schedule(hass):
     n = c.node
     b, p = backend(hass, c)
     pushed = []
-    assert await b.async_start(pushed.append) == "unsubscribe"
-    updated = c.subscribe_events.call_args.args[0]
-    assert c.subscribe_events.call_args.kwargs == {
+    await b.async_start(pushed.append)
+    first = c.subscribe_events.call_args_list[0]
+    updated = first.args[0]
+    assert first.kwargs == {
         "event_filter": EventType.ATTRIBUTE_UPDATED,
         "node_filter": 7,
         "attr_path_filter": "1/513/81",
@@ -187,6 +188,25 @@ async def test_a_change_on_the_unit_pushes_the_schedule(hass):
     value = nest(4, {"0": 0x10, "1": 420, "5": 1900})
     n.update_attribute("1/513/81", value)
     updated(EventType.ATTRIBUTE_UPDATED, value)
+    p.stop()
+    assert pushed[0].days[3] == (Setpoint(420, 19.0),)
+
+
+async def test_the_node_back_pushes_the_schedule_without_waiting_for_the_poll(hass):
+    c = server(nest(4, {"0": 0x10, "1": 420, "5": 1900}))
+    b, p = backend(hass, c)
+    pushed = []
+    await b.async_start(pushed.append)
+    back = next(
+        call.args[0]
+        for call in c.subscribe_events.call_args_list
+        if call.kwargs["event_filter"] == EventType.NODE_UPDATED
+    )
+    c.node.node_data.available = False
+    back(EventType.NODE_UPDATED, c.node)
+    assert not pushed, "still away"
+    c.node.node_data.available = True
+    back(EventType.NODE_UPDATED, c.node)
     p.stop()
     assert pushed[0].days[3] == (Setpoint(420, 19.0),)
 

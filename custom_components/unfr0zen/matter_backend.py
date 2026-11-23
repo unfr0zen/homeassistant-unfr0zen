@@ -120,24 +120,35 @@ class MatterBackend(Backend):
             with contextlib.suppress(HomeAssistantError):
                 on_update(self._decode(node, endpoint))
 
-        stop = client.subscribe_events(
-            updated,
-            event_filter=EventType.ATTRIBUTE_UPDATED,
-            node_filter=node.node_id,
-            attr_path_filter=_path(endpoint),
-        )
-        if self.kind != "schedule" or f"{endpoint}/{THERMOSTAT}/79" not in node.node_data.attributes:
-            return stop
-        stop_handle = client.subscribe_events(
-            updated,
-            event_filter=EventType.ATTRIBUTE_UPDATED,
-            node_filter=node.node_id,
-            attr_path_filter=f"{endpoint}/{THERMOSTAT}/79",
-        )
+        @callback
+        def back(event: Any, data: Any) -> None:
+            # The server has the node again: its cache is current, so a read
+            # that failed while it was away need not wait for the next poll.
+            if getattr(data, "available", False):
+                updated(event, data)
+
+        stops = [
+            client.subscribe_events(
+                updated,
+                event_filter=EventType.ATTRIBUTE_UPDATED,
+                node_filter=node.node_id,
+                attr_path_filter=_path(endpoint),
+            ),
+            client.subscribe_events(back, event_filter=EventType.NODE_UPDATED, node_filter=node.node_id),
+        ]
+        if self.kind == "schedule" and f"{endpoint}/{THERMOSTAT}/79" in node.node_data.attributes:
+            stops.append(
+                client.subscribe_events(
+                    updated,
+                    event_filter=EventType.ATTRIBUTE_UPDATED,
+                    node_filter=node.node_id,
+                    attr_path_filter=f"{endpoint}/{THERMOSTAT}/79",
+                )
+            )
 
         def unsubscribe() -> None:
-            stop()
-            stop_handle()
+            for stop in stops:
+                stop()
 
         return unsubscribe
 
