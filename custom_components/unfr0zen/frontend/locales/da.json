@@ -12,7 +12,6 @@
   "config_active": "Varmt vand kører",
   "choose_calendar": "Vælg unfr0zen-kalenderen (entitet)",
   "entity_not_found": "Entitet ikke fundet: {entity}",
-  "not_writable": "Denne tidsplan kan ikke ændres fra Home Assistant.",
   "when_at": "kl. {time}",
   "when_tomorrow": "i morgen {time}",
   "when_day": "{day} {time}",

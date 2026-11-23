@@ -12,7 +12,6 @@
   "config_active": "Hot water running",
   "choose_calendar": "Choose the unfr0zen calendar (entity)",
   "entity_not_found": "Entity not found: {entity}",
-  "not_writable": "This schedule can't be changed from Home Assistant.",
   "when_at": "at {time}",
   "when_tomorrow": "tomorrow {time}",
   "when_day": "{day} {time}",

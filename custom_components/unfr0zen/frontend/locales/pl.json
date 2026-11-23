@@ -12,7 +12,6 @@
   "config_active": "Grzanie ciepłej wody",
   "choose_calendar": "Wybierz kalendarz unfr0zen (encja)",
   "entity_not_found": "Nie znaleziono encji: {entity}",
-  "not_writable": "Tego harmonogramu nie można zmienić z Home Assistant.",
   "when_at": "o {time}",
   "when_tomorrow": "jutro o {time}",
   "when_day": "{day} {time}",

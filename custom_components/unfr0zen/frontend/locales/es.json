@@ -12,7 +12,6 @@
   "config_active": "Agua caliente en marcha",
   "choose_calendar": "Elige el calendario de unfr0zen (entidad)",
   "entity_not_found": "Entidad no encontrada: {entity}",
-  "not_writable": "Esta programación no se puede cambiar desde Home Assistant.",
   "when_at": "a las {time}",
   "when_tomorrow": "mañana a las {time}",
   "when_day": "{day} {time}",

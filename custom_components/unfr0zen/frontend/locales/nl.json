@@ -12,7 +12,6 @@
   "config_active": "Warm water actief",
   "choose_calendar": "Kies de unfr0zen-agenda (entiteit)",
   "entity_not_found": "Entiteit niet gevonden: {entity}",
-  "not_writable": "Dit schema kan niet vanuit Home Assistant worden gewijzigd.",
   "when_at": "om {time}",
   "when_tomorrow": "morgen {time}",
   "when_day": "{day} {time}",

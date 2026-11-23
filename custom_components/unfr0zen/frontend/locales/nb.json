@@ -12,7 +12,6 @@
   "config_active": "Varmtvann går",
   "choose_calendar": "Velg unfr0zen-kalenderen (entitet)",
   "entity_not_found": "Fant ikke entitet: {entity}",
-  "not_writable": "Denne timeplanen kan ikke endres fra Home Assistant.",
   "when_at": "kl. {time}",
   "when_tomorrow": "i morgen {time}",
   "when_day": "{day} {time}",

@@ -12,7 +12,6 @@
   "config_active": "Varmvatten igång",
   "choose_calendar": "Välj unfr0zen-kalendern (entitet)",
   "entity_not_found": "Entiteten hittades inte: {entity}",
-  "not_writable": "Det här schemat kan inte ändras från Home Assistant.",
   "when_at": "kl. {time}",
   "when_tomorrow": "i morgon kl. {time}",
   "when_day": "{day} {time}",

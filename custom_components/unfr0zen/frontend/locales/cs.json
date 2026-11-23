@@ -12,7 +12,6 @@
   "config_active": "Ohřev teplé vody běží",
   "choose_calendar": "Vyberte kalendář unfr0zen (entita)",
   "entity_not_found": "Entita nenalezena: {entity}",
-  "not_writable": "Tento plán nelze z Home Assistant změnit.",
   "when_at": "v {time}",
   "when_tomorrow": "zítra v {time}",
   "when_day": "{day} {time}",

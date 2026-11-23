@@ -795,10 +795,6 @@ class ScheduleCard extends HTMLElement {
     return this._editable(state) ? ` data-action="open" data-day="${day}"` : "";
   }
 
-  _footer(state) {
-    return this._editable(state) ? "" : `<div class="note">${t("not_writable")}</div>`;
-  }
-
   /** A time field, "06 : 30", for row `i`'s `field`; on the 12-hour clock "6 : 30" and a button between AM and PM. */
   _timeHtml(field, value, i, icon, label) {
     const [h, m] = (value ?? "").split(":");
@@ -1223,8 +1219,7 @@ class Unfr0zenHeatingCard extends ScheduleCard {
         <div class="controls">${this._pillHtml(current)}${this._editHtml(state)}</div>
       </div>
       <div class="week">${rows}</div>
-      ${this._axis(true)}
-      ${this._footer(state)}`;
+      ${this._axis(true)}`;
   }
 
   _pillHtml(current) {
@@ -1523,8 +1518,7 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
         <div class="controls">${this._boostHtml(boost)}${this._pillHtml(state, status)}${this._editHtml(state)}</div>
       </div>
       <div class="week">${rows}</div>
-      ${this._axis(true)}
-      ${this._footer(state)}`;
+      ${this._axis(true)}`;
   }
 
   /** On/off: the schedule switch's, else the water heater's (anything but "off"), else the calendar's. */

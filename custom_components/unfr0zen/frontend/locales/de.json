@@ -12,7 +12,6 @@
   "config_active": "Warmwasser läuft",
   "choose_calendar": "unfr0zen-Kalender (Entität) wählen",
   "entity_not_found": "Entität nicht gefunden: {entity}",
-  "not_writable": "Dieser Zeitplan kann nicht über Home Assistant geändert werden.",
   "when_at": "um {time}",
   "when_tomorrow": "morgen {time}",
   "when_day": "{day} {time}",

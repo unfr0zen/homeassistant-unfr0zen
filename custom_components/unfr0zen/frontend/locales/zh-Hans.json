@@ -12,7 +12,6 @@
   "config_active": "热水运行中",
   "choose_calendar": "选择 unfr0zen 日历（实体）",
   "entity_not_found": "未找到实体：{entity}",
-  "not_writable": "此计划无法从 Home Assistant 更改。",
   "when_at": "今天 {time}",
   "when_tomorrow": "明天 {time}",
   "when_day": "{day} {time}",
