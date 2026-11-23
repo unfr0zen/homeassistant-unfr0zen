@@ -680,10 +680,19 @@ class ScheduleCard extends HTMLElement {
   connectedCallback() {
     // The now marker and "until" text follow the clock.
     this._tick = setInterval(() => this._render(), 60 * 1000);
+    // The boost menu closes on a press anywhere outside the card; one inside is _click's.
+    this._outside = (e) => {
+      if (this._menu && !e.composedPath().includes(this)) {
+        this._menu = false;
+        this._render();
+      }
+    };
+    document.addEventListener("pointerdown", this._outside, true);
   }
 
   disconnectedCallback() {
     clearInterval(this._tick);
+    document.removeEventListener("pointerdown", this._outside, true);
   }
 
   getCardSize() {
@@ -908,7 +917,7 @@ class ScheduleCard extends HTMLElement {
   _click(event) {
     const target = event.target.closest("[data-action]");
     const action = target?.dataset.action;
-    // The boost menu closes on any click outside it.
+    // The boost menu closes on any click in the card outside it.
     if (this._menu && action !== "boost-menu" && action !== "boost") {
       this._menu = false;
       this._render();
