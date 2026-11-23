@@ -109,6 +109,9 @@ class NestlocalBackend(_MqttBackend):
         # updates. Firmware with them says "schedules": true.
         self.supported = True
         self._state_unsubscribe: Callable[[], None] | None = None
+        # The last schedule message: one that came before the state said
+        # the firmware has schedules is taken once it does.
+        self._last: mqtt.ReceiveMessage | None = None
 
     async def _subscribe(self) -> None:
         if self._state_unsubscribe is None:
@@ -132,11 +135,18 @@ class NestlocalBackend(_MqttBackend):
         if supported == self.supported:
             return
         self.supported = supported
-        if not supported:
+        if supported and self._last is not None:
+            super()._received(self._last)
+        elif not supported:
             self.latest = None
             self.seen(None)
-            if self.request_refresh is not None:
-                self.hass.async_create_task(self.request_refresh())
+        if self.request_refresh is not None:
+            self.hass.async_create_task(self.request_refresh())
+
+    @callback
+    def _received(self, msg: mqtt.ReceiveMessage) -> None:
+        self._last = msg
+        super()._received(msg)
 
     def value_of(self, payload: Any) -> Any:
         return self.parse(payload) if self.supported else None

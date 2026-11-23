@@ -235,8 +235,14 @@ async def test_a_schedule_left_by_older_firmware_is_unavailable(hass, calendar):
         if hass.states.get(ENTITY).state == "unavailable":
             break
     assert hass.states.get(ENTITY).state == "unavailable"
-    # Updated: the state says so, and the schedule counts again.
-    async_fire_mqtt_message(hass, f"{BASE}/state", json.dumps({"mode": "heat", "schedules": True}))
+    # Updated, its schedule sent before its state: the schedule counts once
+    # the state says the firmware has schedules, with no other message.
     async_fire_mqtt_message(hass, f"{BASE}/heating_times", json.dumps(week(mon=[("06:00", 20)])))
     await hass.async_block_till_done()
+    assert hass.states.get(ENTITY).state == "unavailable"
+    async_fire_mqtt_message(hass, f"{BASE}/state", json.dumps({"mode": "heat", "schedules": True}))
+    for _ in range(100):
+        await asyncio.sleep(0.01)
+        if hass.states.get(ENTITY).state != "unavailable":
+            break
     assert hass.states.get(ENTITY).state != "unavailable"
