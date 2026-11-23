@@ -1545,9 +1545,12 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
     }
     if (select && boost.startsWith("switch.")) return { via: "switch", active: select.state === "on", minutes: 0, options: [] };
     if (select) {
-      const minutes = Number.parseInt(select.state, 10);
-      const options = (select.attributes.options ?? []).filter((o) => o !== "off");
-      return { via: "select", active: Number.isInteger(minutes) && minutes > 0, minutes: minutes || 0, options };
+      // Its options are lengths, "30" or Matter's "30 min", and one that ends a boost, "off" or Matter's "Off".
+      const all = select.attributes.options ?? [];
+      const length = (o) => Number.parseInt(o, 10) || 0;
+      const minutes = length(select.state);
+      const off = all.find((o) => !length(o)) ?? "off";
+      return { via: "select", active: minutes > 0, minutes, options: all.filter(length), off };
     }
     if (heater) return { via: "water_heater", active: heater.state === "high_demand", minutes: 0, options: [] };
     return { via: null, active: false };
@@ -1558,18 +1561,19 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
     const label = boost.active && boost.minutes ? t("boost_for", { duration: duration(boost.minutes) }) : t("boost");
     const items =
       boost.options.length
-        ? boost.options.map((o) => ({
-            option: o,
-            text: Number(o) >= 60 ? t("boost_hours", { n: Number(o) / 60 }) : t("boost_minutes", { n: o }),
-          }))
+        ? boost.options.map((o) => {
+            const minutes = Number.parseInt(o, 10);
+            return { option: o, text: minutes >= 60 ? t("boost_hours", { n: minutes / 60 }) : t("boost_minutes", { n: minutes }) };
+          })
         : [{ option: "on", text: t("boost_now") }];
     // Ending a boost is offered only while one runs.
-    if (boost.active) items.push({ option: "off", text: t("off") });
+    const off = boost.off ?? "off";
+    if (boost.active) items.push({ option: off, text: t("off") });
     const menu = this._menu
       ? `<div class="menu" role="menu">${items
           .map((i) => {
             const hint =
-              i.option === "off" ? t("boost_end") : i.option === "on" ? t("boost_heat") : t("boost_heat_for", { duration: i.text });
+              i.option === off ? t("boost_end") : i.option === "on" ? t("boost_heat") : t("boost_heat_for", { duration: i.text });
             return `<button class="menu-item" data-action="boost" data-option="${escapeHtml(i.option)}" title="${escapeHtml(hint)}">${escapeHtml(i.text)}</button>`;
           })
           .join("")}</div>`
