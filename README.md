@@ -171,9 +171,13 @@ entity: calendar.nest_thermostat_hot_water_schedule
   Assistant's heating or cooling colour while the Nest heats or cools. In Cool it shows the cooling schedule, titled
   **Cooling**; in Heat·Cool the heat-cool one, titled **Heat/cool**, each change a low and a high.
 - **Hot water** shows the week's on periods, whether hot water is on now and when it next comes on, with its boost and
-  its on/off switch.
-- **Edit schedule** opens a day at a time: change, add or remove setpoints or periods, copy a day to others, and save;
-  the Nest takes the days changed in one write.
+  its on/off switch. Boost runs for 30 minutes, 1 or 2 hours over MQTT and Matter, and over Zigbee2MQTT when the
+  converter offers those lengths; otherwise for the Nest's fixed 30 minutes.
+- **The pencil** opens the editor on today, and **a day's bar** on that day: change, add or remove setpoints or periods,
+  and save; the Nest takes the days changed in one write. Closing with changes unsaved asks first.
+- **Copy to…** has the other days' tabs give those days the shown day's schedule: press a tab to copy to it, and again
+  to take that back.
+- **Hover over a slot** for its times. Times are on Home Assistant's 12- or 24-hour clock, as your profile has it.
 - **Drag on the day's bar** to change times, in steps of 15 minutes. An edge changes one time; where two slots meet,
   both follow it. The middle of a slot moves it whole, keeping its length: a hot water period only as far as the free
   time around it, a heating slot as far as its neighbours, which take up the difference, can keep 15 minutes.

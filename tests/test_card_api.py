@@ -148,7 +148,9 @@ async def test_related_entities_not_found_are_null(hass, mqtt_mock):
     }
 
 
-async def test_zigbee2mqtt_found_by_its_suffixed_ids_and_its_limits(hass, mqtt_mock):
+# A converter's boost: a switch of a fixed length, or a select of lengths as nestlocal's.
+@pytest.mark.parametrize("boost", ["switch", "select"])
+async def test_zigbee2mqtt_found_by_its_suffixed_ids_and_its_limits(hass, mqtt_mock, boost):
     mqtt_entry = MockConfigEntry(domain="mqtt")
     mqtt_entry.add_to_hass(hass)
     ieee = "0x00124b0012345678"
@@ -157,7 +159,7 @@ async def test_zigbee2mqtt_found_by_its_suffixed_ids_and_its_limits(hass, mqtt_m
     )
     for domain, key in [
         ("switch", "hot_water_schedule"),
-        ("switch", "hot_water_boost"),
+        (boost, "hot_water_boost"),
         ("binary_sensor", "hot_water"),
         ("binary_sensor", "heating"),
     ]:
@@ -176,7 +178,7 @@ async def test_zigbee2mqtt_found_by_its_suffixed_ids_and_its_limits(hass, mqtt_m
     assert {k: attributes["related"][k] for k in ("hot_water_switch", "hot_water_active", "hot_water_boost")} == {
         "hot_water_switch": "switch.hallway_hot_water_schedule",
         "hot_water_active": "binary_sensor.hallway_hot_water",
-        "hot_water_boost": "switch.hallway_hot_water_boost",
+        "hot_water_boost": f"{boost}.hallway_hot_water_boost",
     }
     with pytest.raises(ServiceValidationError, match=re.escape("32.5 °C is outside 9-32 °C")):
         await call(

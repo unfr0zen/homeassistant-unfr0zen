@@ -18,6 +18,8 @@ const WEEK = 7 * DAY;
 const DOCS = "https://github.com/unfr0zen/homeassistant-unfr0zen";
 /** A drag's times fall on this grid, and keep slots at least this long, in minutes. */
 const SNAP = 15;
+/** The boost lengths the unit's screen offers, in minutes: a Matter boost, which takes any up to the longest, offers these. */
+const BOOST_MINUTES = ["30", "60", "120"];
 
 // ----- Words -----
 
@@ -118,6 +120,48 @@ function hhmm(minutes) {
   return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }
 
+// Whether Home Assistant shows times on the 12-hour clock; the schedules
+// are on the 24-hour one whatever it shows.
+let twelveHour = false;
+let clockLocale;
+
+/** Has the cards show times as a Home Assistant locale does: on its 12 or 24
+ * hours, else as its language or the browser has them. */
+function useClock(locale) {
+  if (locale === clockLocale) return;
+  clockLocale = locale;
+  const format = locale?.time_format;
+  const tag = format === "system" ? undefined : locale?.language;
+  twelveHour =
+    format === "12" || (format !== "24" && new Intl.DateTimeFormat(tag, { hour: "numeric" }).resolvedOptions().hour12 === true);
+}
+
+/** The 12-hour clock in the cards' language: an hour and its AM or PM, with its minutes if asked for. */
+function twelve(minutes) {
+  return new Intl.DateTimeFormat(language, { hour: "numeric", minute: minutes ? "2-digit" : undefined, hour12: true, timeZone: "UTC" });
+}
+
+/** Minutes after midnight as a date for the 12-hour clock to format. */
+function dateAt(minutes) {
+  return new Date(Date.UTC(2024, 0, 1, 0, minutes));
+}
+
+/** A time of day as Home Assistant shows them: "06:30", or "6:30 AM". */
+function clock(minutes) {
+  return twelveHour ? twelve(true).format(dateAt(minutes)) : hhmm(minutes);
+}
+
+/** An hour of the axis: "06", or "6 AM". */
+function axisHour(hour) {
+  return twelveHour ? twelve(false).format(dateAt(hour * 60)) : String(hour).padStart(2, "0");
+}
+
+/** "AM" or "PM" as the cards' language writes them. */
+function meridiem(pm) {
+  const part = twelve(false).formatToParts(dateAt(pm ? DAY / 2 : 0)).find((p) => p.type === "dayPeriod");
+  return part?.value ?? (pm ? "PM" : "AM");
+}
+
 /** A length of time as the hot water blocks label it: "2h", "1h30", "45m". */
 function duration(minutes) {
   const h = Math.floor(minutes / 60);
@@ -148,9 +192,9 @@ function zonedNow(timeZone) {
 
 /** When a change `ahead` minutes from now, on `day`, at `minute`, happens: "at 22:30", "tomorrow 06:30", "Wed 06:30". */
 function when(now, day, minute, ahead) {
-  if (day === now.day && ahead < DAY) return t("when_at", { time: hhmm(minute) });
-  if (day === (now.day + 1) % 7 && ahead < 2 * DAY) return t("when_tomorrow", { time: hhmm(minute) });
-  return t("when_day", { day: dayName(day), time: hhmm(minute) });
+  if (day === now.day && ahead < DAY) return t("when_at", { time: clock(minute) });
+  if (day === (now.day + 1) % 7 && ahead < 2 * DAY) return t("when_tomorrow", { time: clock(minute) });
+  return t("when_day", { day: dayName(day), time: clock(minute) });
 }
 
 /** `value` within lo..hi, widened to take in `was`: what already stands is never pushed out. */
@@ -166,6 +210,41 @@ function snap(minutes) {
 /** A position along a day's bar. */
 function along(minute) {
   return `${(minute / DAY) * 100}%`;
+}
+
+/** The header's layouts, the first that fits taken: the controls beside the titles, then the same with only the
+ * pills' icons, then the controls on a line of their own, then that with only the icons. */
+const HEAD_LAYOUTS = [[], ["compact"], ["wrapped"], ["wrapped", "compact"]];
+
+/** Hides what doesn't fit in `root` as laid out: the header's pill texts, as HEAD_LAYOUTS has them; a slot's label
+ * wider than its slot; the axis's in-between hours while its labels would touch (then all but its ends, then all but
+ * midnight). */
+function fit(root) {
+  for (const head of root.querySelectorAll(".head")) {
+    const titles = head.querySelector(".titles");
+    const controls = head.querySelector(".controls");
+    for (const layout of HEAD_LAYOUTS) {
+      head.classList.remove("compact", "wrapped");
+      head.classList.add(...layout);
+      // On one line: each box level with the first, its items being centred on the line.
+      const level = (boxes) => boxes.every((b) => b.top < boxes[0].bottom && boxes[0].top < b.bottom);
+      const boxes = (els) => els.map((e) => e.getBoundingClientRect());
+      const fits = level(boxes(layout.includes("wrapped") ? [...controls.children] : [titles, controls]));
+      if (fits) break;
+    }
+  }
+  for (const el of root.querySelectorAll(".seg, .block")) {
+    el.classList.remove("clipped");
+    if (el.textContent && el.scrollWidth > el.clientWidth) el.classList.add("clipped");
+  }
+  for (const axis of root.querySelectorAll(".axis")) {
+    for (const level of ["", "sparse", "ends", "first"]) {
+      axis.classList.remove("sparse", "ends", "first");
+      if (level) axis.classList.add(level);
+      const shown = [...axis.children].filter((s) => s.offsetWidth).map((s) => s.getBoundingClientRect());
+      if (shown.every((r, i) => !i || r.left >= shown[i - 1].right + 4)) break;
+    }
+  }
 }
 
 function escapeHtml(text) {
@@ -323,6 +402,8 @@ const STYLES = `
     --u0-muted: var(--secondary-text-color, #9b9b9b);
     --u0-radius: 14px;
     display: block;
+    /* What the card's own narrow rules, such as its padding, go by. */
+    container-type: inline-size;
   }
   /* A cooling schedule in the cooling colour. */
   :host(.cooling) {
@@ -342,12 +423,14 @@ const STYLES = `
     container-type: inline-size;
   }
   ha-card { display: block; padding: 20px 20px 18px; }
-  .head { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
-  .titles { flex: 1; min-width: 0; }
+  /* The controls go under the titles when the two don't fit side by side. */
+  .head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 18px; }
+  /* At least as wide as the title's longest word. */
+  .titles { flex: 1 1 10em; min-width: min-content; }
   .title { font-size: 1.35rem; font-weight: 600; line-height: 1.2; }
-  .subtitle { color: var(--u0-muted); margin-top: 4px; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .subtitle { color: var(--u0-muted); margin-top: 4px; font-size: 0.95rem; }
   .pill {
-    display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px;
+    display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px; white-space: nowrap;
     background: var(--u0-raised); font-weight: 600; font-size: 1.05rem; border: 0; color: inherit; font-family: inherit;
   }
   .pill.on { background: var(--u0-on); color: #fff; }
@@ -356,7 +439,14 @@ const STYLES = `
   .pill.cooling { background: var(--state-climate-cool-color, #2196f3); color: #fff; }
   button.pill { cursor: pointer; }
   .pill ha-icon { --mdc-icon-size: 20px; }
-  .controls { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  /* On a line of their own, the controls wrap rather than leave the card. */
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+  /* The edit button's icon, not the circle around it, at the card's edge. */
+  .controls > .edit-button { margin-right: -8px; }
+  .head.wrapped > .controls { flex-basis: 100%; }
+  /* Short of room, the pills keep their icons and lose their text. */
+  .head.compact .pill { padding: 8px; gap: 0; }
+  .head.compact .pill .text { display: none; }
   .boost-wrap { position: relative; }
   .pill.boost { font-size: 0.95rem; padding: 8px 14px; }
   .pill.boost.active { background: var(--u0-boost); color: #fff; }
@@ -382,6 +472,8 @@ const STYLES = `
     background: var(--u0-track);
   }
   .bar.today { outline: 1px solid var(--u0-line); outline-offset: 2px; }
+  .week [data-action] { cursor: pointer; }
+  .bar[data-action]:hover { filter: brightness(1.12); }
   .seg {
     position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center;
     font-weight: 600; font-size: 0.82rem; white-space: nowrap; overflow: hidden;
@@ -395,21 +487,16 @@ const STYLES = `
   .now { position: absolute; top: -2px; bottom: -2px; width: 3px; margin-left: -1.5px; background: #fff;
     box-shadow: 0 0 0 1px rgba(0,0,0,.55); border-radius: 2px; z-index: 2; }
   .axis { display: flex; justify-content: space-between; color: var(--u0-muted); font-size: 0.8rem; margin-top: 8px; }
+  .axis span { white-space: nowrap; }
+  .axis.sparse span:nth-child(even), .axis.ends span:not(:first-child, :last-child),
+    .axis.first span:not(:first-child) { display: none; }
+  .seg.clipped, .block.clipped { color: transparent; }
   .axis.indent { margin-left: 44px; }
   .empty { color: var(--u0-muted); font-size: 0.85rem; padding-left: 10px; align-self: center; }
   .note { color: var(--u0-muted); font-size: 0.9rem; margin-top: 16px; text-align: center; }
-  .edit {
-    margin-top: 18px; width: 100%; display: flex; align-items: center; justify-content: center; gap: 10px;
-    padding: 14px; border-radius: var(--u0-radius); border: 0; background: var(--u0-raised); color: inherit;
-    font: inherit; font-weight: 600; font-size: 1.05rem; cursor: pointer;
-  }
-  .edit:hover { background: color-mix(in srgb, var(--u0-text) 10%, var(--u0-card)); }
   .warning { color: var(--error-color, #db4437); }
   @container (max-width: 420px) {
     .seg.small, .block.small { color: transparent; }
-    .pill.boost:not(.active) .text { display: none; }
-    .pill.boost { padding: 8px 10px; }
-    .subtitle { white-space: normal; }
     .title { font-size: 1.2rem; }
     .week { grid-template-columns: 38px 1fr; }
     .axis.indent { margin-left: 38px; }
@@ -442,6 +529,9 @@ const STYLES = `
     font: inherit; font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px;
   }
   .tab.selected { background: var(--u0-text); color: var(--u0-card); }
+  /* A day that can be copied to, and one that is. */
+  .tab.pick { box-shadow: inset 0 0 0 1.5px var(--u0-line); }
+  .tab.copy { box-shadow: inset 0 0 0 2px var(--u0-warm); color: var(--u0-text); }
   .tab.changed .label::after { content: "•"; margin-left: 2px; color: var(--u0-warm); }
   .mini { position: relative; width: 70%; height: 5px; border-radius: 3px; overflow: hidden; background: var(--u0-track); }
   .mini .seg, .mini .block { top: 0; bottom: 0; border-radius: 0; }
@@ -449,10 +539,12 @@ const STYLES = `
   .day-name { font-weight: 600; font-size: 1.05rem; }
   .carry { color: var(--u0-muted); font-size: 0.92rem; }
   .rows { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+  /* What doesn't fit goes to a second line rather than out of sight, the remove button at the right. */
   .row {
-    display: flex; align-items: center; gap: 10px; background: var(--u0-raised); border-radius: var(--u0-radius);
+    display: flex; flex-wrap: wrap; align-items: center; gap: 10px; background: var(--u0-raised); border-radius: var(--u0-radius);
     padding: 10px 12px;
   }
+  .row > .icon-button { margin-left: auto; }
   .row.invalid { outline: 1px solid var(--error-color, #db4437); }
   .time {
     display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--u0-line); border-radius: 12px;
@@ -465,6 +557,10 @@ const STYLES = `
   }
   .time .part:focus { outline: 2px solid var(--u0-warm); outline-offset: 1px; }
   .colon { font-weight: 700; font-size: 1.2rem; color: var(--u0-muted); margin: 0 1px; }
+  .meridiem {
+    border: 0; border-radius: 8px; padding: 5px 7px; background: var(--u0-raised); color: var(--u0-text);
+    font: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; white-space: nowrap;
+  }
   .dash { color: var(--u0-muted); }
   .grow { flex: 1; }
   .stepper { display: inline-flex; align-items: center; gap: 6px; }
@@ -497,17 +593,15 @@ const STYLES = `
     font: inherit; font-weight: 600; padding: 14px; cursor: pointer; display: flex; justify-content: center; gap: 8px;
   }
   .add:disabled { opacity: .4; cursor: default; }
-  .copy-days { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-  .chip {
-    border: 1px solid var(--u0-line); background: transparent; color: var(--u0-muted); border-radius: 999px;
-    padding: 6px 12px; font: inherit; font-weight: 600; cursor: pointer;
-  }
-  .chip.selected { background: var(--u0-warm); border-color: var(--u0-warm); color: #fff; }
-  .actions { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; gap: 10px; }
+  .actions { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; margin-top: 18px; gap: 10px; }
+  .ask { font-weight: 600; }
+  .answers { display: flex; gap: 10px; margin-left: auto; }
   .action {
     border: 0; border-radius: 12px; padding: 12px 18px; background: var(--u0-raised); color: var(--u0-text);
     font: inherit; font-weight: 600; font-size: 1.02rem; cursor: pointer; display: inline-flex; gap: 8px; align-items: center;
   }
+  .action.active { box-shadow: inset 0 0 0 2px var(--u0-warm); }
+  .action.danger { background: var(--error-color, #db4437); color: #fff; }
   .action.primary { background: var(--u0-warm); color: #fff; }
   .action.primary.water { background: var(--u0-water); }
   .action:disabled, .action.primary:disabled, .action.primary.water:disabled {
@@ -516,12 +610,33 @@ const STYLES = `
   .errors { color: var(--error-color, #db4437); margin-top: 12px; font-size: 0.92rem; }
   @media (max-width: 420px) {
     .panel { padding: 14px 10px; }
+  }
+  /* The editor's rows by the room the panel has, a 12-hour clock's AM and PM
+     taking the place of the time's icon. */
+  @container (max-width: 500px) {
     .tab { padding: 8px 0 6px; font-size: 0.82rem; }
     .row { padding: 8px; gap: 6px; }
     .time .part, .colon { font-size: 1.05rem; }
     .time { gap: 4px; padding: 6px 6px; }
+    .time.twelve { gap: 2px; padding: 6px 4px; }
+    .time.twelve ha-icon { display: none; }
+    .meridiem { padding: 5px 4px; font-size: 0.8rem; }
     .round { width: 34px; height: 34px; }
     .temp { font-size: 1.05rem; min-width: 2.8em; }
+  }
+  @container (max-width: 400px) {
+    .row { gap: 4px; }
+    .time ha-icon { display: none; }
+    .time.twelve { gap: 1px; padding: 6px 3px; }
+    .time.twelve .part { width: 1.4em; }
+    .meridiem { padding: 4px 3px; font-size: 0.72rem; }
+    .row > .icon-button { width: 32px; height: 32px; }
+    .round { width: 30px; height: 30px; }
+    .stepper { gap: 4px; }
+    .temp { min-width: 2.6em; }
+    /* A range's Low and High over their steppers. */
+    .row.range .stepper { flex-wrap: wrap; justify-content: center; row-gap: 2px; }
+    .row.range .which { flex-basis: 100%; text-align: center; }
   }
 `;
 
@@ -553,6 +668,7 @@ class ScheduleCard extends HTMLElement {
       }
     });
     fahrenheit = hass.config?.unit_system?.temperature === "°F";
+    useClock(hass.locale);
     const state = hass.states[this._config?.entity];
     const key = [state, ...this._relatedEntities().map((id) => hass.states[id])];
     if (!this._rendered || key.some((s, i) => s !== this._rendered[i])) {
@@ -603,9 +719,24 @@ class ScheduleCard extends HTMLElement {
       );
       this.shadowRoot.addEventListener("focusin", (e) => e.target.matches?.("input") && e.target.select());
       const dialog = this.shadowRoot.querySelector("dialog");
+      // What fits follows the card's and the editor's widths.
+      const resized = new ResizeObserver(() => {
+        fit(this.shadowRoot.querySelector("ha-card"));
+        fit(dialog);
+      });
+      resized.observe(this.shadowRoot.querySelector("ha-card"));
+      resized.observe(dialog);
       dialog.addEventListener("close", () => {
         this._editor = null;
         this._drag = null;
+      });
+      // Escape asks before changes are discarded; pressed again, it closes.
+      dialog.addEventListener("cancel", (e) => {
+        const editor = this._editor;
+        if (!editor || editor.saving || editor.discarding || !this._dirty()) return;
+        e.preventDefault();
+        editor.discarding = true;
+        this._renderEditor();
       });
       dialog.addEventListener("pointerdown", (e) => this._dragStart(e));
       dialog.addEventListener("pointermove", (e) => this._dragMove(e));
@@ -624,6 +755,7 @@ class ScheduleCard extends HTMLElement {
     this.setAttribute("lang", language);
     this._language = language;
     card.innerHTML = this._cardHtml(state);
+    fit(card);
   }
 
   _week(state) {
@@ -631,39 +763,52 @@ class ScheduleCard extends HTMLElement {
   }
 
   _axis(indent) {
-    return `<div class="axis${indent ? " indent" : ""}"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>`;
+    return `<div class="axis${indent ? " indent" : ""}">${[0, 6, 12, 18, 24].map((h) => `<span>${axisHour(h)}</span>`).join("")}</div>`;
   }
 
   _editable(state) {
     return state.attributes.writable !== false;
   }
 
-  _footer(state) {
-    if (this._editable(state)) {
-      return `<button class="edit" data-action="open" title="${t("edit_hint")}"><ha-icon icon="mdi:pencil-outline"></ha-icon>${t("edit")}</button>`;
-    }
-    return `<div class="note">${t("not_writable")}</div>`;
+  /** The header's button that opens the editor on today. */
+  _editHtml(state) {
+    if (!this._editable(state)) return "";
+    return `<button class="icon-button edit-button" data-action="open" aria-label="${t("edit")}" title="${t("edit_hint")}"><ha-icon icon="mdi:pencil-outline"></ha-icon></button>`;
   }
 
-  /** A 24-hour time field, "06 : 30", for row `i`'s `field`. */
+  /** What has a day's name and bar open the editor on that day. */
+  _opens(state, day) {
+    return this._editable(state) ? ` data-action="open" data-day="${day}"` : "";
+  }
+
+  _footer(state) {
+    return this._editable(state) ? "" : `<div class="note">${t("not_writable")}</div>`;
+  }
+
+  /** A time field, "06 : 30", for row `i`'s `field`; on the 12-hour clock "6 : 30" and a button between AM and PM. */
   _timeHtml(field, value, i, icon, label) {
     const [h, m] = (value ?? "").split(":");
+    const hint = (name) => (name === "h" ? t(twelveHour ? "hour_12" : "hour") : t("minute"));
     const part = (name, v, max) =>
       `<input class="part" inputmode="numeric" maxlength="2" value="${escapeHtml(v ?? "")}" data-field="${field}"
-        data-part="${name}" data-max="${max}" data-row="${i}" aria-label="${label}: ${name === "h" ? t("hour") : t("minute")}" title="${name === "h" ? t("hour") : t("minute")}">`;
-    return `<label class="time"><ha-icon icon="${icon}"></ha-icon>${part("h", h, 23)}<span class="colon">:</span>${part("m", m, 59)}</label>`;
+        data-part="${name}" data-max="${max}" data-row="${i}" aria-label="${label}: ${hint(name)}" title="${hint(name)}">`;
+    const half = twelveHour && h
+      ? `<button class="meridiem" data-action="meridiem" data-field="${field}" data-row="${i}">${meridiem(Number(h) >= 12)}</button>`
+      : "";
+    const hour = twelveHour && h ? String(Number(h) % 12 || 12) : h;
+    return `<label class="time${half ? " twelve" : ""}"><ha-icon icon="${icon}"></ha-icon>${part("h", hour, 23)}<span class="colon">:</span>${part("m", m, 59)}${half}</label>`;
   }
 
   // --- The editor ---
 
-  _open() {
+  /** Opens the editor on `day`, or on today. */
+  _open(day) {
     const state = this._state;
     const week = this._week(state);
     const draft = {};
     for (const name of DAYS) draft[name] = this._rowsOf(week[name] ?? []);
-    const today = this._now.day;
     // A mode or handle change selects a different week from the one being edited.
-    this._editor = { mode: state.attributes.mode, handle: state.attributes.schedule_handle, day: today, draft, original: JSON.parse(JSON.stringify(draft)), copy: new Set(), copying: false, error: null, saving: false };
+    this._editor = { mode: state.attributes.mode, handle: state.attributes.schedule_handle, day: day ?? this._now.day, draft, original: JSON.parse(JSON.stringify(draft)), copy: new Set(), copying: false, discarding: false, error: null, saving: false };
     this._renderEditor();
     const dialog = this.shadowRoot.querySelector("dialog");
     if (!dialog.open) dialog.showModal();
@@ -680,6 +825,11 @@ class ScheduleCard extends HTMLElement {
     const e = this._editor;
     const shown = e.draft[DAYS[e.day]];
     return Object.fromEntries(DAYS.map((name) => [name, e.copy.has(name) ? shown : e.draft[name]]));
+  }
+
+  /** Whether closing the editor would lose changes. */
+  _dirty() {
+    return Object.keys(this._changes()).length > 0;
   }
 
   /** The days whose rows differ from the calendar's, as they would be saved. */
@@ -709,23 +859,30 @@ class ScheduleCard extends HTMLElement {
     const max = this._state.attributes.max_per_day ?? this._maxPerDay;
     const tabs = DAYS.map((d, i) => {
       const changed = d in changes ? " changed" : "";
-      const selected = i === e.day ? " selected" : "";
-      return `<button class="tab${selected}${changed}" data-action="day" data-day="${i}" title="${dayName(i, "long")}">
+      const selected = i === e.day ? " selected" : e.copy.has(d) ? " copy" : "";
+      // While copying, the other days' tabs take the shown day's rows or give them back.
+      const pick = e.copying && i !== e.day;
+      const title = pick ? t("copy_day_hint", { day: dayName(i, "long") }) : dayName(i, "long");
+      return `<button class="tab${selected}${changed}${pick ? " pick" : ""}" data-action="day" data-day="${i}" title="${title}">
         <span class="label">${dayName(i)}</span><span class="mini">${this._miniHtml(week, i)}</span></button>`;
     }).join("");
-    const copy = e.copying
-      ? `<div class="copy-days">${DAYS.map((d, i) =>
-          i === e.day ? "" : `<button class="chip${e.copy.has(d) ? " selected" : ""}" data-action="copy-day" data-day="${d}" title="${t("copy_day_hint", { day: dayName(i, "long") })}">${dayName(i)}</button>`,
-        ).join("")}</div>`
-      : "";
+    const actions = e.discarding
+      ? `<span class="ask">${t("discard_question")}</span>
+          <span class="answers"><button class="action" data-action="keep">${t("keep_editing")}</button>
+            <button class="action danger" data-action="discard">${t("discard")}</button></span>`
+      : `<button class="action${e.copying ? " active" : ""}" data-action="copy" aria-pressed="${e.copying}" title="${t("copy_hint")}"><ha-icon icon="mdi:content-copy"></ha-icon>${t("copy")}</button>
+          <button class="action primary${this._water ? " water" : ""}" data-action="save" title="${t("save_hint")}"
+            ${!Object.keys(changes).length || problems.size || e.saving ? "disabled" : ""}>${e.saving ? t("saving") : t("save")}</button>`;
     // A copy that would be refused, by the day it goes to.
     const copied = [...problems]
       .filter(([key]) => e.copy.has(key.split(":")[0]))
       .flatMap(([key, texts]) => texts.map((text) => `${dayName(DAYS.indexOf(key.split(":")[0]), "long")}: ${text}`));
     const errors = [...new Set([...(problems.get(name) ?? []), ...copied]), ...(e.error ? [e.error] : [])];
-    // The time field being typed in, to have it again once redrawn.
-    const focused = this.shadowRoot.activeElement?.dataset;
-    const field = focused?.part ? `input[data-field="${focused.field}"][data-part="${focused.part}"][data-row="${focused.row}"]` : null;
+    // The time field being typed in, or the button pressed from the keyboard, to have it again once redrawn.
+    const active = this.shadowRoot.activeElement;
+    const focus = active && dialog.contains(active)
+      ? active.localName + [...active.attributes].filter((a) => a.name.startsWith("data-")).map((a) => `[${a.name}="${CSS.escape(a.value)}"]`).join("")
+      : null;
     dialog.innerHTML = `
       <div class="panel${this._drag ? " dragging" : ""}" role="document">
         <div class="panel-head">
@@ -742,14 +899,10 @@ class ScheduleCard extends HTMLElement {
             <ha-icon icon="mdi:plus"></ha-icon>${this._addLabel}</button>
         </div>
         ${errors.length ? `<div class="errors">${errors.map(escapeHtml).join("<br>")}</div>` : ""}
-        ${copy}
-        <div class="actions">
-          <button class="action" data-action="copy" title="${t("copy_hint")}"><ha-icon icon="mdi:content-copy"></ha-icon>${t("copy")}</button>
-          <button class="action primary${this._water ? " water" : ""}" data-action="save" title="${t("save_hint")}"
-            ${!Object.keys(changes).length || problems.size || e.saving ? "disabled" : ""}>${e.saving ? t("saving") : t("save")}</button>
-        </div>
+        <div class="actions">${actions}</div>
       </div>`;
-    if (field) dialog.querySelector(field)?.focus();
+    fit(dialog);
+    if (focus) dialog.querySelector(focus)?.focus();
   }
 
   _click(event) {
@@ -761,20 +914,35 @@ class ScheduleCard extends HTMLElement {
       this._render();
     }
     if (!target) return;
-    if (action === "open") return this._open();
+    if (action === "open") return this._open(target.dataset.day === undefined ? undefined : Number(target.dataset.day));
     if (action === "toggle") return this._toggle();
     if (action === "boost-menu" || action === "boost") return this._boost(target);
     const e = this._editor;
     if (!e) return;
     const rows = e.draft[DAYS[e.day]];
+    // The question about discarding stands until the next press.
+    e.discarding = false;
     switch (action) {
       case "close":
-        return this._close();
-      case "day":
-        e.day = Number(target.dataset.day);
-        e.copy.clear();
-        e.copying = false;
+        if (e.saving || !this._dirty()) return this._close();
+        e.discarding = true;
         break;
+      case "discard":
+        return this._close();
+      case "keep":
+        break;
+      case "day": {
+        const day = Number(target.dataset.day);
+        if (e.copying) {
+          if (day !== e.day && !e.copy.delete(DAYS[day])) e.copy.add(DAYS[day]);
+        } else {
+          // The days copied to keep the rows they were given.
+          for (const name of e.copy) e.draft[name] = rows.map((r) => ({ ...r }));
+          e.copy.clear();
+          e.day = day;
+        }
+        break;
+      }
       case "add":
         rows.push(this._newRow(rows));
         break;
@@ -784,15 +952,14 @@ class ScheduleCard extends HTMLElement {
       case "step":
         this._step(rows[Number(target.dataset.row)], Number(target.dataset.by), target.dataset.which);
         break;
+      case "meridiem": {
+        const row = rows[Number(target.dataset.row)];
+        row[target.dataset.field] = hhmm(toMinutes(row[target.dataset.field]) + DAY / 2);
+        break;
+      }
       case "copy":
         e.copying = !e.copying;
         break;
-      case "copy-day": {
-        const d = target.dataset.day;
-        if (e.copy.has(d)) e.copy.delete(d);
-        else e.copy.add(d);
-        break;
-      }
       case "save":
         return this._save();
       default:
@@ -808,7 +975,10 @@ class ScheduleCard extends HTMLElement {
     if (!e || !input.dataset.field) return;
     const row = e.draft[DAYS[e.day]][Number(input.dataset.row)];
     const [h, m] = (row[input.dataset.field] ?? "00:00").split(":");
-    const n = Number.parseInt(input.value, 10);
+    let n = Number.parseInt(input.value, 10);
+    // On the 12-hour clock, 1 to 12 is an hour of the half of the day the time
+    // is in; 0 and 13 to 23 are the 24-hour clock's.
+    if (twelveHour && input.dataset.part === "h" && n >= 1 && n <= 12) n = (n % 12) + (Number(h) >= 12 ? 12 : 0);
     if (Number.isInteger(n) && n >= 0 && n <= Number(input.dataset.max)) {
       const value = String(n).padStart(2, "0");
       row[input.dataset.field] = input.dataset.part === "h" ? `${value}:${m}` : `${h}:${value}`;
@@ -1005,7 +1175,8 @@ class Unfr0zenHeatingCard extends ScheduleCard {
         // Ranges share a shade: a divider marks where one gives way to the next.
         const cls = `seg${w > 45 ? " warm" : ""}${width < 13 ? " small" : ""}${this._range && s.start > 0 ? " divided" : ""}`;
         const label = labels && width >= (s.high === null ? 6 : 11) ? temps(s) : "";
-        return `<div class="${cls}" style="${style}">${label}</div>`;
+        const title = labels ? ` title="${clock(s.start)}–${clock(s.end)} · ${temps(s)}"` : "";
+        return `<div class="${cls}" style="${style}"${title}>${label}</div>`;
       })
       .join("");
   }
@@ -1027,14 +1198,14 @@ class Unfr0zenHeatingCard extends ScheduleCard {
       const bar = points.length
         ? this._segmentsHtml(points, day, true, warmth)
         : `<span class="empty">${t("no_setpoints")}</span>`;
-      return `<div class="day${today ? " today" : ""}">${dayName(day)}</div>
-        <div class="bar${today ? " today" : ""}">${bar}${marker}</div>`;
+      return `<div class="day${today ? " today" : ""}"${this._opens(state, day)}>${dayName(day)}</div>
+        <div class="bar${today ? " today" : ""}"${this._opens(state, day)}>${bar}${marker}</div>`;
     }).join("");
     return `
       <div class="head">
         <div class="titles"><div class="title">${escapeHtml(this._title())}</div>
           <div class="subtitle">${escapeHtml(subtitle)}</div></div>
-        ${this._pillHtml(current)}
+        <div class="controls">${this._pillHtml(current)}${this._editHtml(state)}</div>
       </div>
       <div class="week">${rows}</div>
       ${this._axis(true)}
@@ -1055,7 +1226,9 @@ class Unfr0zenHeatingCard extends ScheduleCard {
       if (a.hvac_action === "heating" || a.hvac_action === "cooling") action = a.hvac_action;
     }
     const hint = t(action ? `target_${action}` : "target");
-    return `<span class="pill${action ? ` ${action}` : ""}" title="${hint}"><ha-icon icon="mdi:gauge"></ha-icon>${text}</span>`;
+    // The schedule's mode, in Home Assistant's icons for it.
+    const icon = { cool: "mdi:snowflake", range: "mdi:sun-snowflake-variant" }[this._state?.attributes.mode] ?? "mdi:fire";
+    return `<span class="pill${action ? ` ${action}` : ""}" title="${text} · ${hint}"><ha-icon icon="${icon}"></ha-icon><span class="text">${text}</span></span>`;
   }
 
   // --- Editor rows: a time and a temperature ---
@@ -1220,7 +1393,7 @@ class Unfr0zenHeatingCard extends ScheduleCard {
           add(name, t("change_needs_time"));
         } else if (seen.has(m)) {
           add(`${name}:${i}`, "duplicate");
-          add(name, t("two_changes", { time: r.time }));
+          add(name, t("two_changes", { time: clock(m) }));
         } else seen.set(m, i);
         const values = this._range ? [r.temp, r.high] : [r.temp];
         if (!values.every((v) => v >= min && v <= max)) add(name, t("temperatures_between", { min: degrees(min), max: degrees(max) }));
@@ -1298,7 +1471,8 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
         const left = (b.start / DAY) * 100;
         const width = ((b.end - b.start) / DAY) * 100;
         const label = labels && b.first && width >= 5 ? duration(b.length) : "";
-        return `<div class="block${width < 9 ? " small" : ""}" style="left:${left}%;width:${width}%">${label}</div>`;
+        const title = labels ? ` title="${clock(b.start)}–${clock(b.end)} · ${duration(b.length)}"` : "";
+        return `<div class="block${width < 9 ? " small" : ""}" style="left:${left}%;width:${width}%"${title}>${label}</div>`;
       })
       .join("");
   }
@@ -1311,7 +1485,7 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
     let subtitle = t("no_periods");
     if (spans.length) {
       const next = status.next ? t("next_period", { when: when(now, status.next.day, status.next.on, status.next.ahead) }) : "";
-      const state = status.on ? t("on_until", { time: hhmm(status.until) }) : t("off");
+      const state = status.on ? t("on_until", { time: clock(status.until) }) : t("off");
       subtitle = next ? `${state} · ${next}` : state;
     }
     if (boost.active) subtitle = boost.minutes ? t("boosting_for", { duration: duration(boost.minutes) }) : t("boosting");
@@ -1322,14 +1496,14 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
     const rows = DAYS.map((_, day) => {
       const today = day === now.day;
       const marker = today ? `<div class="now" style="left:${(now.minute / DAY) * 100}%"></div>` : "";
-      return `<div class="day${today ? " today" : ""}">${dayName(day)}</div>
-        <div class="bar${today ? " today" : ""}">${this._blocksHtml(spans, day, true)}${marker}</div>`;
+      return `<div class="day${today ? " today" : ""}"${this._opens(state, day)}>${dayName(day)}</div>
+        <div class="bar${today ? " today" : ""}"${this._opens(state, day)}>${this._blocksHtml(spans, day, true)}${marker}</div>`;
     }).join("");
     return `
       <div class="head">
         <div class="titles"><div class="title">${escapeHtml(this._title())}</div>
           <div class="subtitle">${escapeHtml(subtitle)}</div>${heating}</div>
-        <div class="controls">${this._boostHtml(boost)}${this._pillHtml(state, status)}</div>
+        <div class="controls">${this._boostHtml(boost)}${this._pillHtml(state, status)}${this._editHtml(state)}</div>
       </div>
       <div class="week">${rows}</div>
       ${this._axis(true)}
@@ -1343,10 +1517,10 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
     if (entity) {
       const on = sw && this._hass.states[sw] ? entity.state === "on" : entity.state !== "off";
       return `<button class="pill${on ? " on" : ""}" data-action="toggle" title="${t(on ? "turn_off" : "turn_on")}">
-        <ha-icon icon="mdi:water-boiler"></ha-icon>${t(on ? "on" : "off")}</button>`;
+        <ha-icon icon="mdi:water-boiler"></ha-icon><span class="text">${t(on ? "on" : "off")}</span></button>`;
     }
     const on = state.state === "on" || status.on;
-    return `<span class="pill${on ? " on" : ""}" title="${t(on ? "on_now" : "off_now")}"><ha-icon icon="mdi:water-boiler"></ha-icon>${t(on ? "on" : "off")}</span>`;
+    return `<span class="pill${on ? " on" : ""}" title="${t(on ? "on_now" : "off_now")}"><ha-icon icon="mdi:water-boiler"></ha-icon><span class="text">${t(on ? "on" : "off")}</span></span>`;
   }
 
   async _toggle() {
@@ -1359,18 +1533,22 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
     }
   }
 
-  /** The boost: through its select (minutes, "off" for none) or switch (a fixed
-   * boost), else the water heater's high demand mode. */
+  /** The boost: through its select (minutes, "off" for none); over Matter, the water heater's boost of a length, its
+   * switch ending it; through its switch (a fixed boost); else the water heater's high demand mode. */
   _boostState() {
     const { boost, waterHeater } = this._related();
     const select = boost && this._hass.states[boost];
+    const heater = waterHeater && this._hass.states[waterHeater];
+    if (heater && this._hass.entities?.[waterHeater]?.platform === "matter" && !boost?.startsWith("select.")) {
+      // Home Assistant's Matter water heater is in high demand while a boost runs.
+      return { via: "matter", active: heater.state === "high_demand", minutes: 0, options: BOOST_MINUTES };
+    }
     if (select && boost.startsWith("switch.")) return { via: "switch", active: select.state === "on", minutes: 0, options: [] };
     if (select) {
       const minutes = Number.parseInt(select.state, 10);
       const options = (select.attributes.options ?? []).filter((o) => o !== "off");
       return { via: "select", active: Number.isInteger(minutes) && minutes > 0, minutes: minutes || 0, options };
     }
-    const heater = waterHeater && this._hass.states[waterHeater];
     if (heater) return { via: "water_heater", active: heater.state === "high_demand", minutes: 0, options: [] };
     return { via: null, active: false };
   }
@@ -1379,7 +1557,7 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
     if (!boost.via) return "";
     const label = boost.active && boost.minutes ? t("boost_for", { duration: duration(boost.minutes) }) : t("boost");
     const items =
-      boost.via === "select"
+      boost.options.length
         ? boost.options.map((o) => ({
             option: o,
             text: Number(o) >= 60 ? t("boost_hours", { n: Number(o) / 60 }) : t("boost_minutes", { n: o }),
@@ -1413,6 +1591,10 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
     const via = this._boostState().via;
     if (via === "select") {
       await this._hass.callService("select", "select_option", { option }, { entity_id: boost });
+    } else if (via === "matter" && option !== "off") {
+      await this._hass.callService("matter", "water_heater_boost", { duration: Number(option) * 60 }, { entity_id: waterHeater });
+    } else if (via === "matter" && boost && this._hass.states[boost]) {
+      await this._hass.callService("switch", "turn_off", {}, { entity_id: boost });
     } else if (via === "switch") {
       await this._hass.callService("switch", option === "off" ? "turn_off" : "turn_on", {}, { entity_id: boost });
     } else {
@@ -1445,7 +1627,7 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
 
   _carryText(draft, day) {
     const spill = hotWaterBlocks(periods(draft), day).find((b) => !b.first && b.start === 0);
-    return spill ? t("on_from_midnight", { time: hhmm(spill.end) }) : "";
+    return spill ? t("on_from_midnight", { time: clock(spill.end) }) : "";
   }
 
   _rowHtml(row, i, problem) {
@@ -1604,7 +1786,7 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
           return;
         }
         if (on === off) {
-          add(name, t("period_to_itself", { time: r.on }));
+          add(name, t("period_to_itself", { time: clock(on) }));
           add(`${name}:${i}`, "empty");
           return;
         }
