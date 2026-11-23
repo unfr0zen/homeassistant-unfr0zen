@@ -8,7 +8,7 @@ from typing import Any
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEntityFeature, CalendarEvent
 from homeassistant.const import ATTR_ENTITY_ID
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import Event, HomeAssistant, ServiceCall, callback
 from homeassistant.helpers import config_validation as cv, device_registry as dr, entity_platform, entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -109,11 +109,25 @@ class _UnitCalendar(CoordinatorEntity[ScheduleCoordinator], CalendarEntity):
     related entities."""
 
     kind = ""
+    _shown_related: dict[str, str | None] | None = None
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+
+        @callback
+        def registry_updated(event: Event[er.EventEntityRegistryUpdatedData]) -> None:
+            # An entity of the unit's added, removed or renamed, such as a
+            # boost switch a converter replaces with a select: the cards'
+            # related entities follow.
+            if self.device_entry is not None and _related(self.hass, self.device_entry) != self._shown_related:
+                self.async_write_ha_state()
+
+        self.async_on_remove(self.hass.bus.async_listen(er.EVENT_ENTITY_REGISTRY_UPDATED, registry_updated))
 
     def _base_attributes(self) -> dict[str, Any]:
         attributes: dict[str, Any] = {"kind": self.kind, "entry_id": self.coordinator.config_entry.entry_id}
         if self.device_entry is not None:
-            attributes["related"] = _related(self.hass, self.device_entry)
+            self._shown_related = attributes["related"] = _related(self.hass, self.device_entry)
         return attributes
 
     async def async_set_schedule(self, days: dict[str, Any]) -> None:

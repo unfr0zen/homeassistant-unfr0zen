@@ -132,6 +132,39 @@ async def test_both_calendars_name_the_units_related_entities(hass, mqtt_mock):
     assert hass.states.get("calendar.nest_thermostat_hot_water_schedule").attributes["related"] == related
 
 
+async def test_related_entities_follow_the_units_entities(hass, mqtt_mock):
+    # A converter update replacing Zigbee2MQTT's boost switch with a select.
+    mqtt_entry = MockConfigEntry(domain="mqtt")
+    mqtt_entry.add_to_hass(hass)
+    ieee = "0x00124b0012345678"
+    nest = dr.async_get(hass).async_get_or_create(
+        config_entry_id=mqtt_entry.entry_id, identifiers={("mqtt", f"zigbee2mqtt_{ieee}")}, name="Hallway"
+    )
+    entities = er.async_get(hass)
+
+    def add(domain):
+        return entities.async_get_or_create(
+            domain,
+            "mqtt",
+            f"{ieee}_hot_water_boost_zigbee2mqtt",
+            config_entry=mqtt_entry,
+            device_id=nest.id,
+            suggested_object_id="hallway_hot_water_boost",
+        )
+
+    switch = add("switch")
+    await setup_z2m(hass, mqtt_mock, devices("64513"), {"heating_times": week(), "hot_water_times": hot_water()})
+
+    def boost():
+        return hass.states.get("calendar.hallway_hot_water_schedule").attributes["related"]["hot_water_boost"]
+
+    assert boost() == "switch.hallway_hot_water_boost"
+    entities.async_remove(switch.entity_id)
+    add("select")
+    await hass.async_block_till_done()
+    assert boost() == "select.hallway_hot_water_boost"
+
+
 async def test_related_entities_not_found_are_null(hass, mqtt_mock):
     mqtt_entry = MockConfigEntry(domain="mqtt")
     mqtt_entry.add_to_hass(hass)
