@@ -188,6 +188,30 @@ async def test_an_endpoint_gained_before_the_watch_reloads(hass):
     changed.assert_called_once()
 
 
+async def test_an_endpoint_added_later_reloads_at_once(hass):
+    from matter_server.common.models import EventType
+
+    b = MatterHotWater(hass, "device")
+    changed = MagicMock()
+    client, without = MagicMock(), node(water_heater=False)
+    client.subscribe_events = MagicMock(return_value=MagicMock())
+    with patch.object(MatterHotWater, "_node", return_value=(client, without)):
+        await b.async_watch(False, changed)
+    changed.assert_not_called()
+    subscribed = {c.kwargs["event_filter"]: c for c in client.subscribe_events.call_args_list}
+    assert set(subscribed) == {EventType.ENDPOINT_ADDED, EventType.ENDPOINT_REMOVED}
+    assert all(c.kwargs["node_filter"] == without.node_id for c in subscribed.values())
+    # The unit reports hot water: the Water Heater endpoint arrives.
+    added = subscribed[EventType.ENDPOINT_ADDED].args[0]
+    with patch.object(MatterHotWater, "_node", return_value=(client, node([]))):
+        added(EventType.ENDPOINT_ADDED, {"node_id": without.node_id, "endpoint_id": 2})
+        await hass.async_block_till_done()
+    changed.assert_called_once()
+    b.async_stop()
+    for c in subscribed.values():
+        c.return_value.assert_called_once()
+
+
 async def test_no_schedule_is_an_empty_week(hass):
     b, p = backend(hass, server([]))
     assert await b.async_read() == HotWater(EMPTY)

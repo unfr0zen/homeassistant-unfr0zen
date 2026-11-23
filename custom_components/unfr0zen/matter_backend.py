@@ -280,7 +280,27 @@ class MatterHotWater(MatterBackend, HotWaterBackend):
             if await self.async_present() != present:
                 on_change()
 
-        self._stop_watching = async_track_time_interval(self.hass, check, self.poll)
+        stops = [async_track_time_interval(self.hass, check, self.poll)]
+        # nestlocal adds the Water Heater endpoint as soon as the unit reports
+        # hot water: look again when the node's endpoints change, the poll
+        # above being the fallback.
+        with contextlib.suppress(HomeAssistantError):
+            from matter_server.common.models import EventType
+
+            client, node = self._node()
+
+            @callback
+            def endpoints_changed(event: Any, data: Any) -> None:
+                self.hass.async_create_task(check(None))
+
+            for event in (EventType.ENDPOINT_ADDED, EventType.ENDPOINT_REMOVED):
+                stops.append(client.subscribe_events(endpoints_changed, event_filter=event, node_filter=node.node_id))
+
+        def stop() -> None:
+            for s in stops:
+                s()
+
+        self._stop_watching = stop
         # An endpoint gained or lost since setup decided.
         await check(None)
 
