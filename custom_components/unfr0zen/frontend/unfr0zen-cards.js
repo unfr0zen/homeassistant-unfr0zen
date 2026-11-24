@@ -450,8 +450,8 @@ const STYLES = `
     padding: 10px 12px; border-radius: 10px; cursor: pointer;
   }
   .menu-item:hover { background: var(--u0-raised); }
-  .heating-now { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; color: var(--u0-warm);
-    font-weight: 600; font-size: 0.88rem; }
+  .heating-now { display: inline-flex; align-items: center; vertical-align: middle; gap: 4px;
+    margin-inline-start: 8px; color: var(--u0-warm); font-weight: 600; font-size: 0.88rem; }
   .heating-now ha-icon { --mdc-icon-size: 16px; }
   .week { display: grid; row-gap: 10px; }
   .week-row { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; background: none;
@@ -493,6 +493,13 @@ const STYLES = `
     .week-row { grid-template-columns: 38px minmax(0, 1fr); }
     .axis.indent { margin-left: 38px; }
     ha-card { padding: 16px 14px 14px; }
+  }
+  @container (max-width: 340px) {
+    .title:has(.heating-now) { font-size: 1rem; line-height: 1.44rem; }
+    .heating-now { gap: 2px; margin-inline-start: 4px; font-size: 0.75rem; line-height: 1.2; }
+    .heating-now ha-icon { --mdc-icon-size: 14px; }
+    .head.compact:has(.heating-now) .pill { padding-inline: 4px; }
+    .head.compact:has(.heating-now) .controls { gap: 2px; }
   }
 
   dialog {
@@ -1489,14 +1496,14 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
     if (away) subtitle = t("unavailable");
     const active = this._related().active;
     const heating = active && this._hass.states[active]?.state === "on"
-      ? `<div class="heating-now"><ha-icon icon="mdi:fire"></ha-icon>${t("heating_now")}</div>`
+      ? `<span class="heating-now"><ha-icon icon="mdi:fire"></ha-icon>${t("heating_now")}</span>`
       : "";
     const rows = DAYS.map((_, day) => this._dayRow(state, day, now,
       away ? `<span class="empty">${t("unavailable")}</span>` : this._blocksHtml(spans, day, true))).join("");
     return `
       <div class="head">
-        <div class="titles"><div class="title">${escapeHtml(this._title())}</div>
-          <div class="subtitle" title="${escapeHtml(subtitle)}">${escapeHtml(subtitle)}</div>${heating}</div>
+        <div class="titles"><div class="title">${escapeHtml(this._title())}${heating}</div>
+          <div class="subtitle" title="${escapeHtml(subtitle)}">${escapeHtml(subtitle)}</div></div>
         <div class="controls">${this._boostHtml(boost)}${this._pillHtml()}${this._editHtml(state)}</div>
       </div>
       <div class="week">${rows}</div>
@@ -1514,7 +1521,7 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
     const status = t(!available ? "unavailable" : on ? "on" : "off");
     return `<button class="pill${on ? " on" : ""}" data-action="toggle" role="switch" aria-label="${label}" aria-checked="${on}"
       title="${available ? t(on ? "turn_off" : "turn_on") : status}" ${available ? "" : "disabled"}>
-      <ha-icon icon="mdi:water-boiler"></ha-icon><span class="text">${status}</span></button>`;
+      <ha-icon icon="mdi:calendar-clock"></ha-icon><span class="text">${status}</span></button>`;
   }
 
   async _toggle() {

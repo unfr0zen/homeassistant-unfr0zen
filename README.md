@@ -172,7 +172,7 @@ entity: calendar.nest_thermostat_hot_water_schedule
   shows the scheduled temperature. With no live target, the pill shows the scheduled temperature. In Cool, the card shows the
   **Cooling** schedule. In Heat·Cool, it shows the **Heat/cool** schedule with a low and a high for each change.
 - **Hot water** shows the week's on periods and the next scheduled run. **Heating now** follows the Nest’s activity
-  sensor when available. The boiler button shows **On** or **Off** and toggles the schedule switch or the linked
+  sensor when available. The calendar-clock button shows **On** or **Off** and toggles the schedule switch or the linked
   water heater. Boost runs for 30 minutes, 1 or 2 hours over MQTT and Matter, and over Zigbee2MQTT when the
   converter offers those lengths; otherwise for the Nest's fixed 30 minutes.
 - **The pencil** opens the editor on today. Click a day's row or focus it and press Enter or Space to edit that day.
