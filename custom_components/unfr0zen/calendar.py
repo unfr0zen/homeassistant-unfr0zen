@@ -159,9 +159,11 @@ def _related(hass: HomeAssistant, device: dr.DeviceEntry) -> dict[str, str | Non
         "hot_water_switch": keyed("switch", "hot_water_schedule") or labelled("switch", "Hot water schedule"),
         # nestlocal's hot_water_active, Zigbee2MQTT's hot_water.
         "hot_water_active": keyed("binary_sensor", "hot_water_active", "hot_water"),
-        # A select of lengths (nestlocal's, Zigbee2MQTT's, Matter's) before a
-        # switch of a fixed boost.
-        "hot_water_boost": keyed("select", "hot_water_boost")
+        # Remaining minutes before a legacy select of lengths or fixed boost switch.
+        "hot_water_boost": keyed("number", "hot_water_boost")
+        or labelled("number", "Hot water boost")
+        or labelled("number", "Hot water boost length")
+        or keyed("select", "hot_water_boost")
         or labelled("select", "Hot water boost")
         or keyed("switch", "hot_water_boost")
         or labelled("switch", "Hot water boost"),

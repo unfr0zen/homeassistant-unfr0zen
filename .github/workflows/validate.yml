@@ -32,3 +32,4 @@ jobs:
       - run: .venv/bin/ruff format --check . && .venv/bin/ruff check .
       - run: .venv/bin/python -m pytest -q
       - run: node --check custom_components/unfr0zen/frontend/unfr0zen-cards.js
+      - run: node --test tests/*.test.mjs

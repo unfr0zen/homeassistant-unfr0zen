@@ -1428,7 +1428,7 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
         { name: "entity", required: true, selector: { entity: { filter: { domain: "calendar", integration: "unfr0zen" } } } },
         { name: "name", selector: { text: {} } },
         { name: "switch", selector: { entity: { filter: { domain: "switch" } } } },
-        { name: "boost", selector: { entity: { filter: { domain: "select" } } } },
+        { name: "boost", selector: { entity: { filter: { domain: ["number", "select", "switch"] } } } },
         { name: "water_heater", selector: { entity: { filter: { domain: "water_heater" } } } },
         { name: "active", selector: { entity: { filter: { domain: "binary_sensor" } } } },
       ],
@@ -1543,12 +1543,17 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
     }
   }
 
-  /** The boost: through its select (minutes, "off" for none); over Matter, the water heater's boost of a length, its
-   * switch ending it; through its switch (a fixed boost); else the water heater's high demand mode. */
+  /** The boost: through its number (remaining minutes, zero for none) or legacy select; over Matter, the water
+   * heater's boost of a length, its switch ending it; through its switch (a fixed boost); else high demand mode. */
   _boostState() {
     const { boost, waterHeater } = this._related();
     const select = boost && this._hass.states[boost];
     const heater = waterHeater && this._hass.states[waterHeater];
+    if (select && boost.startsWith("number.")) {
+      const remaining = Number(select.state);
+      const minutes = Number.isInteger(remaining) && remaining > 0 ? remaining : 0;
+      return { via: "number", active: minutes > 0, minutes, options: BOOST_MINUTES, off: "0" };
+    }
     if (heater && this._hass.entities?.[waterHeater]?.platform === "matter" && !boost?.startsWith("select.")) {
       // Home Assistant's Matter water heater is in high demand while a boost runs.
       return { via: "matter", active: heater.state === "high_demand", minutes: 0, options: BOOST_MINUTES };
@@ -1559,8 +1564,8 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
       const all = select.attributes.options ?? [];
       const length = (o) => Number.parseInt(o, 10) || 0;
       const minutes = length(select.state);
-      const off = all.find((o) => !length(o)) ?? "off";
-      return { via: "select", active: minutes > 0, minutes, options: all.filter(length), off };
+      const off = all.find((o) => o.toLowerCase() === "off") ?? "off";
+      return { via: "select", active: minutes > 0 || select.state === "Custom duration", minutes, options: all.filter(length), off };
     }
     if (heater) return { via: "water_heater", active: heater.state === "high_demand", minutes: 0, options: [] };
     return { via: null, active: false };
@@ -1603,7 +1608,9 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
     const option = target.dataset.option;
     const { boost, waterHeater } = this._related();
     const via = this._boostState().via;
-    if (via === "select") {
+    if (via === "number") {
+      await this._hass.callService("number", "set_value", { value: Number(option) }, { entity_id: boost });
+    } else if (via === "select") {
       await this._hass.callService("select", "select_option", { option }, { entity_id: boost });
     } else if (via === "matter" && option !== "off") {
       await this._hass.callService("matter", "water_heater_boost", { duration: Number(option) * 60 }, { entity_id: waterHeater });

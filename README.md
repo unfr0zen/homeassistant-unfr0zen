@@ -222,6 +222,9 @@ entity: calendar.nest_thermostat_hot_water_schedule
 
 The cards find the Nest's climate entity, hot water switch, boost and hot water sensor on its device. Set them yourself
 with `climate`, `switch`, `boost`, `active` or `water_heater` if they are elsewhere.
+The hot water card prefers the boost number entity, showing its remaining minutes while keeping the 30/60/120-minute
+presets. Autodetected cards follow a replacement number entity automatically; an explicit `boost:` YAML override
+pointing to an old select or switch may need updating to the new `number` entity. Legacy boost controls remain supported.
 
 Automations can do what the editor does with the `unfr0zen.set_schedule` and `unfr0zen.set_hot_water_schedule` actions,
 which replace the days they name:
@@ -257,6 +260,8 @@ uv venv -p python3.14 .venv
 uv pip install -p .venv -r requirements_test.txt
 .venv/bin/python -m pytest
 .venv/bin/ruff format --check . && .venv/bin/ruff check .
+node --check custom_components/unfr0zen/frontend/unfr0zen-cards.js
+node --test tests/*.test.mjs
 ```
 
 With Docker running and Compose installed, regenerate all light and dark README screenshots with one command.

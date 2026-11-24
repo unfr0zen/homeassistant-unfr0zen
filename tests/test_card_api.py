@@ -95,7 +95,8 @@ async def test_the_hot_water_calendar_gives_its_week(hass, unit):
     assert attributes["week"]["sun"] == []
 
 
-async def test_both_calendars_name_the_units_related_entities(hass, mqtt_mock):
+@pytest.mark.parametrize("boost", ["select", "number"])
+async def test_both_calendars_name_the_units_related_entities(hass, mqtt_mock, boost):
     mqtt_entry = MockConfigEntry(domain="mqtt")
     mqtt_entry.add_to_hass(hass)
     nest = dr.async_get(hass).async_get_or_create(
@@ -108,7 +109,7 @@ async def test_both_calendars_name_the_units_related_entities(hass, mqtt_mock):
         ("switch", "hot_water_schedule"),
         ("binary_sensor", "heating"),
         ("binary_sensor", "hot_water_active"),
-        ("select", "hot_water_boost"),
+        (boost, "hot_water_boost"),
         ("select", "temperature_scale"),
         ("water_heater", "boiler"),
     ]:
@@ -125,7 +126,7 @@ async def test_both_calendars_name_the_units_related_entities(hass, mqtt_mock):
         "climate": "climate.nest_thermostat",
         "hot_water_switch": "switch.nest_hot_water_schedule",
         "hot_water_active": "binary_sensor.nest_hot_water_active",
-        "hot_water_boost": "select.nest_hot_water_boost",
+        "hot_water_boost": f"{boost}.nest_hot_water_boost",
         "water_heater": "water_heater.nest_boiler",
     }
     assert hass.states.get("calendar.nest_thermostat_heating_schedule").attributes["related"] == related
@@ -163,6 +164,15 @@ async def test_related_entities_follow_the_units_entities(hass, mqtt_mock):
     add("select")
     await hass.async_block_till_done()
     assert boost() == "select.hallway_hot_water_boost"
+    number = add("number")
+    await hass.async_block_till_done()
+    assert boost() == number.entity_id
+    entities.async_update_entity(number.entity_id, new_entity_id="number.renamed_boost")
+    await hass.async_block_till_done()
+    assert boost() == "number.renamed_boost"
+    entities.async_remove("number.renamed_boost")
+    await hass.async_block_till_done()
+    assert boost() == "select.hallway_hot_water_boost"
 
 
 async def test_related_entities_not_found_are_null(hass, mqtt_mock):
@@ -181,8 +191,8 @@ async def test_related_entities_not_found_are_null(hass, mqtt_mock):
     }
 
 
-# A converter's boost: a switch of a fixed length, or a select of lengths as nestlocal's.
-@pytest.mark.parametrize("boost", ["switch", "select"])
+# A converter's boost: remaining minutes, or a legacy switch or select.
+@pytest.mark.parametrize("boost", ["switch", "select", "number"])
 async def test_zigbee2mqtt_found_by_its_suffixed_ids_and_its_limits(hass, mqtt_mock, boost):
     mqtt_entry = MockConfigEntry(domain="mqtt")
     mqtt_entry.add_to_hass(hass)
@@ -445,7 +455,8 @@ async def test_matter_switches_found_by_their_labels(hass):
     assert _related(hass, nest)["hot_water_boost"] == "select.nest_thermostat_hot_water_boost"
 
 
-async def test_zha_switches_found_by_their_labels(hass):
+@pytest.mark.parametrize("boost_label", ["Hot water boost", "Hot water boost length"])
+async def test_zha_switches_found_by_their_labels(hass, boost_label):
     zha_entry = MockConfigEntry(domain="zha")
     zha_entry.add_to_hass(hass)
     nest = dr.async_get(hass).async_get_or_create(
@@ -463,3 +474,22 @@ async def test_zha_switches_found_by_their_labels(hass):
         )
     related = _related(hass, nest)
     assert (related["hot_water_switch"], related["hot_water_boost"]) == ("switch.hallway_18", "switch.hallway_17")
+    entities = er.async_get(hass)
+    entities.async_get_or_create(
+        "number",
+        "zha",
+        "00:12:4b:00:12:34:56:78-43-13",
+        config_entry=zha_entry,
+        device_id=nest.id,
+        original_name="Eco cool limit",
+    )
+    number = entities.async_get_or_create(
+        "number",
+        "zha",
+        "00:12:4b:00:12:34:56:78-44-13",
+        config_entry=zha_entry,
+        device_id=nest.id,
+        original_name=boost_label,
+        suggested_object_id="hallway_boost_minutes",
+    )
+    assert _related(hass, nest)["hot_water_boost"] == number.entity_id
