@@ -381,6 +381,7 @@ const STYLES = `
     --u0-track: color-mix(in srgb, var(--primary-text-color, #e1e1e1) 7%, var(--u0-card));
     --u0-raised: color-mix(in srgb, var(--primary-text-color, #e1e1e1) 6%, var(--u0-card));
     --u0-line: color-mix(in srgb, var(--primary-text-color, #e1e1e1) 14%, transparent);
+    --u0-control: color-mix(in srgb, var(--u0-text) 14%, transparent);
     --u0-water: var(--state-water_heater-eco-color, #4caf50);
     --u0-on: var(--state-water_heater-eco-color, #4caf50);
     --u0-boost: var(--state-water_heater-high_demand-color, #ff6f22);
@@ -422,11 +423,11 @@ const STYLES = `
     display: inline-flex; align-items: center; gap: 8px; padding: 8px 16px; border-radius: 999px; white-space: nowrap;
     background: var(--u0-raised); font-weight: 600; font-size: 1.05rem; border: 0; color: inherit; font-family: inherit;
   }
-  .pill.on { background: var(--u0-on); color: #fff; }
+  .pill.on { --u0-fill: var(--u0-on); }
   /* The thermostat's target while it heats or cools, in Home Assistant's colours. */
-  .pill.heating { background: var(--state-climate-heat-color, #ff6f22); color: #fff; }
-  .pill.cooling { background: var(--state-climate-cool-color, #2196f3); color: #fff; }
-  button.pill { cursor: pointer; }
+  .pill.heating { --u0-fill: var(--state-climate-heat-color, #ff6f22); }
+  .pill.cooling { --u0-fill: var(--state-climate-cool-color, #2196f3); }
+  button.pill { cursor: pointer; background: var(--u0-control); }
   .pill ha-icon { --mdc-icon-size: 20px; }
   .controls { grid-area: 1 / 2; display: flex; align-items: center; gap: 8px; }
   /* Keep the text block beside the controls, reducing button labels when space is tight. */
@@ -438,7 +439,7 @@ const STYLES = `
   .head.compact [role="switch"] { font-size: 0.95rem; }
   .boost-wrap { position: relative; }
   .pill.boost { font-size: 0.95rem; padding: 8px 14px; }
-  .pill.boost.active { background: var(--u0-boost); color: #fff; }
+  .pill.boost.active { --u0-fill: var(--u0-boost); }
   .menu {
     --u0-raised: color-mix(in srgb, var(--primary-text-color, #e1e1e1) 6%, var(--u0-surface));
     position: absolute; right: 0; top: calc(100% + 6px); z-index: 5; min-width: 140px; padding: 6px;
@@ -456,7 +457,7 @@ const STYLES = `
   .week { display: grid; row-gap: 10px; }
   .week-row { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; background: none;
     border: 0; border-radius: 9px; color: inherit; padding: 0; font: inherit; text-align: start; min-width: 0; }
-  .week-row:focus-visible { outline: 2px solid var(--primary-color, currentColor); outline-offset: 3px; }
+  button:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 3px; }
   .day { font-weight: 600; color: var(--u0-muted); font-size: 0.95rem; }
   .day.today { color: var(--u0-text); }
   .bar {
@@ -468,13 +469,21 @@ const STYLES = `
   button.week-row:hover .bar { filter: brightness(1.12); }
   .seg {
     position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center;
-    font-weight: 600; font-size: 0.82rem; white-space: nowrap; overflow: hidden;
+    font-weight: 600; font-size: 0.82rem; white-space: nowrap; overflow: hidden; background: var(--u0-fill);
   }
   .seg.warm { color: #fff; }
   .block {
-    position: absolute; top: 3px; bottom: 3px; border-radius: 7px; background: var(--u0-water); color: #fff;
+    --u0-fill: var(--u0-water);
+    position: absolute; top: 3px; bottom: 3px; border-radius: 7px; background: var(--u0-fill); color: #fff;
     display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 0.8rem; overflow: hidden;
     white-space: nowrap;
+  }
+  .pill.on, .pill.heating, .pill.cooling, .pill.boost.active, .action.primary, .action.danger {
+    background: var(--u0-fill); color: #fff;
+  }
+  @supports (color: contrast-color(red)) {
+    .pill.heating, .pill.cooling, .pill.boost.active, .action.primary, .action.danger { color: contrast-color(var(--u0-fill)); }
+    .pill.on, .seg, .seg.warm, .block { color: light-dark(contrast-color(var(--u0-fill)), #fff); }
   }
   .now { position: absolute; top: -2px; bottom: -2px; width: 3px; margin-left: -1.5px; background: #fff;
     box-shadow: 0 0 0 1px rgba(0,0,0,.55); border-radius: 2px; z-index: 2; }
@@ -518,18 +527,18 @@ const STYLES = `
   .panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
   .panel-title { font-weight: 600; font-size: 1.1rem; }
   .icon-button {
-    border: 0; background: transparent; color: var(--u0-muted); width: 40px; height: 40px; border-radius: 50%;
+    border: 0; background: var(--u0-control); color: var(--u0-text); width: 40px; height: 40px; border-radius: 50%;
     display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
   }
-  .icon-button:hover { background: var(--u0-raised); color: var(--u0-text); }
+  .icon-button:hover { background: color-mix(in srgb, var(--u0-text) 24%, transparent); }
   .tabs { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
   .tab {
-    border: 0; border-radius: 12px; padding: 10px 2px 8px; background: var(--u0-raised); color: var(--u0-muted);
+    border: 0; border-radius: 12px; padding: 10px 2px 8px; background: var(--u0-control); color: var(--u0-text);
     font: inherit; font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px;
   }
   .tab.selected { background: var(--u0-text); color: var(--u0-card); }
   /* A day that can be copied to, and one that is. */
-  .tab.pick { box-shadow: inset 0 0 0 1.5px var(--u0-line); }
+  .tab.pick { background: color-mix(in srgb, var(--u0-warm) 14%, var(--u0-card)); }
   .tab.copy { box-shadow: inset 0 0 0 2px var(--u0-warm); color: var(--u0-text); }
   .tab.changed .label::after { content: "•"; margin-left: 2px; color: var(--u0-warm); }
   .mini { position: relative; width: 70%; height: 5px; border-radius: 3px; overflow: hidden; background: var(--u0-track); }
@@ -546,8 +555,8 @@ const STYLES = `
   .row > .icon-button { margin-left: auto; }
   .row.invalid { outline: 1px solid var(--error-color, #db4437); }
   .time {
-    display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--u0-line); border-radius: 12px;
-    padding: 6px 10px; background: var(--u0-card);
+    display: inline-flex; align-items: center; gap: 8px; border-radius: 12px;
+    padding: 7px 11px; background: var(--u0-control);
   }
   .time ha-icon { --mdc-icon-size: 20px; color: var(--u0-muted); }
   .time .part {
@@ -557,7 +566,7 @@ const STYLES = `
   .time .part:focus { outline: 2px solid var(--u0-warm); outline-offset: 1px; }
   .colon { font-weight: 700; font-size: 1.2rem; color: var(--u0-muted); margin: 0 1px; }
   .meridiem {
-    border: 0; border-radius: 8px; padding: 5px 7px; background: var(--u0-raised); color: var(--u0-text);
+    border: 0; border-radius: 8px; padding: 5px 7px; background: var(--u0-control); color: var(--u0-text);
     font: inherit; font-weight: 700; font-size: 0.85rem; cursor: pointer; white-space: nowrap;
   }
   .dash { color: var(--u0-muted); }
@@ -582,13 +591,13 @@ const STYLES = `
   .dragging, .dragging * { cursor: grabbing; user-select: none; }
   .dragging .edge.active, .dragging:has(.edge.active) * { cursor: ew-resize; }
   .round {
-    width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--u0-card); color: var(--u0-text);
+    width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--u0-control); color: var(--u0-text);
     display: inline-flex; align-items: center; justify-content: center; cursor: pointer; font: inherit;
   }
   .round:disabled { opacity: .35; cursor: default; }
   .temp { min-width: 3.2em; text-align: center; font-weight: 700; font-size: 1.2rem; font-variant-numeric: tabular-nums; }
   .add {
-    border: 1.5px dashed var(--u0-line); border-radius: var(--u0-radius); background: transparent; color: var(--u0-muted);
+    border: 1.5px solid transparent; border-radius: var(--u0-radius); background: var(--u0-control); color: var(--u0-text);
     font: inherit; font-weight: 600; padding: 14px; cursor: pointer; display: flex; justify-content: center; gap: 8px;
   }
   .add:disabled { opacity: .4; cursor: default; }
@@ -596,15 +605,15 @@ const STYLES = `
   .ask { font-weight: 600; }
   .answers { display: flex; gap: 10px; margin-left: auto; }
   .action {
-    border: 0; border-radius: 12px; padding: 12px 18px; background: var(--u0-raised); color: var(--u0-text);
+    border: 0; border-radius: 12px; padding: 12px 18px; background: var(--u0-control); color: var(--u0-text);
     font: inherit; font-weight: 600; font-size: 1.02rem; cursor: pointer; display: inline-flex; gap: 8px; align-items: center;
   }
   .action.active { box-shadow: inset 0 0 0 2px var(--u0-warm); }
-  .action.danger { background: var(--error-color, #db4437); color: #fff; }
-  .action.primary { background: var(--u0-warm); color: #fff; }
-  .action.primary.water { background: var(--u0-water); }
+  .action.danger { --u0-fill: var(--error-color, #db4437); }
+  .action.primary { --u0-fill: var(--u0-warm); }
+  .action.primary.water { --u0-fill: var(--u0-water); }
   .action:disabled, .action.primary:disabled, .action.primary.water:disabled {
-    opacity: .45; cursor: default; background: var(--u0-raised); color: var(--u0-muted);
+    cursor: default; background: var(--u0-raised); color: var(--u0-muted);
   }
   .errors { color: var(--error-color, #db4437); margin-top: 12px; font-size: 0.92rem; }
   @media (max-width: 420px) {
@@ -1185,7 +1194,7 @@ class Unfr0zenHeatingCard extends ScheduleCard {
         const left = (s.start / DAY) * 100;
         const width = ((s.end - s.start) / DAY) * 100;
         const w = warmth(s);
-        const style = `left:${left}%;width:${width}%;background:color-mix(in srgb, var(--u0-warm) ${w}%, var(--u0-cool))`;
+        const style = `left:${left}%;width:${width}%;--u0-fill:color-mix(in srgb, var(--u0-warm) ${w}%, var(--u0-cool))`;
         // Ranges share a shade: a divider marks where one gives way to the next.
         const cls = `seg${w > 45 ? " warm" : ""}${width < 13 ? " small" : ""}${this._range && s.start > 0 ? " divided" : ""}`;
         const label = labels && width >= (s.high === null ? 6 : 11) ? temps(s) : "";

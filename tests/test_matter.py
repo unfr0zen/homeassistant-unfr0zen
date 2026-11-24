@@ -13,7 +13,7 @@ import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.unfr0zen import ScheduleCoordinator
-from custom_components.unfr0zen.matter_backend import MatterBackend
+from custom_components.unfr0zen.matter_backend import MatterBackend, read
 from custom_components.unfr0zen.schedule import Schedule, Setpoint
 
 OK = {"statusCode": 0, "attributeStatus": [{"attributeID": 0x51, "statusCode": 0}]}
@@ -377,6 +377,16 @@ async def test_a_node_without_the_thermostat_endpoint_is_unavailable(hass):
     with pytest.raises(UpdateFailed, match="no endpoint 1 of the Nest"):
         await ScheduleCoordinator(hass, entry, b)._async_update_data()
     p.stop()
+
+
+def test_paused_named_matter_week_uses_first_selected_schedule():
+    named = nest(4, {"0": 2, "1": 360, "5": 2050})[0]
+    named["0"] = base64.b64encode(b"weekday").decode()
+    named["5"] = False
+    unit = node([named, *nest(4)], HEAT_TYPES)
+    unit.node_data.attributes["1/513/79"] = None
+    assert read(unit).handle == b"weekday"
+    assert read(unit).days[0][0].temp == 20.5
 
 
 async def test_editing_the_active_named_week_preserves_its_name_and_the_other_weeks(hass):

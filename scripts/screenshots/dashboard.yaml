@@ -1,0 +1,18 @@
+views:
+  - title: Thermostat
+    type: panel
+    cards:
+      - type: vertical-stack
+        cards:
+          - type: custom:unfr0zen-heating-card
+            entity: calendar.nest_thermostat_heating_schedule
+            climate: climate.preview
+          - type: custom:unfr0zen-hot-water-card
+            entity: calendar.nest_thermostat_hot_water_schedule
+            switch: switch.preview_water_schedule
+            active: binary_sensor.preview_water_active
+            boost: select.preview_boost
+          - type: calendar
+            entities: [calendar.nest_thermostat_heating_schedule]
+            initial_view: listWeek
+            show_add_event: false

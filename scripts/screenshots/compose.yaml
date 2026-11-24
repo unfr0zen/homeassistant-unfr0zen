@@ -1,0 +1,39 @@
+services:
+  ha:
+    image: ghcr.io/home-assistant/home-assistant:2026.10.4
+    ports: ["127.0.0.1::8123"]
+    volumes:
+      - config:/config
+      - ../../custom_components/unfr0zen:/config/custom_components/unfr0zen:ro
+      - ./dashboard.yaml:/config/ui-lovelace.yaml:ro
+    configs:
+      - source: ha_config
+        target: /config/configuration.yaml
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8123/api/onboarding"]
+      interval: 2s
+      timeout: 5s
+      retries: 60
+  mqtt:
+    image: eclipse-mosquitto:2
+    command: ["mosquitto", "-c", "/mosquitto-no-auth.conf"]
+
+volumes:
+  config:
+
+configs:
+  ha_config:
+    content: |
+      homeassistant:
+        name: Screenshot Home
+        time_zone: UTC
+        country: GB
+        language: en
+        latitude: 0
+        longitude: 0
+        elevation: 0
+        unit_system: metric
+      frontend:
+      calendar:
+      lovelace:
+        mode: yaml

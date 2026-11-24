@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>unfr0zen · Thermostat entry proposal</title>
+<style>
+  :root { color-scheme: dark; font: 16px/1.45 Roboto, system-ui, sans-serif; background: #191919; color: #e3e3e3; }
+  * { box-sizing: border-box; }
+  main { max-width: 1010px; margin: 32px auto; padding: 0 12px; }
+  h1 { color: #b9b9b9; font-size: 16px; font-weight: 500; margin: 0 0 8px 16px; }
+  details { border: 1px solid #292a2b; border-radius: 20px; background: #030608; overflow: hidden; }
+  summary { min-height: 70px; display: flex; align-items: center; gap: 22px; padding: 12px 24px; cursor: pointer; list-style: none; }
+  summary::-webkit-details-marker { display: none; }
+  summary:focus-visible { outline: 2px solid #74b9df; outline-offset: -3px; border-radius: inherit; }
+  summary::before { content: ''; width: 8px; height: 8px; border: solid #999; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+  details[open] summary::before { transform: rotate(225deg); }
+  .row { display: flex; gap: 16px; align-items: center; min-height: 76px; padding: 12px 24px 12px 52px; border-top: 1px solid #292a2b; }
+  .meta { color: #b2b2b2; font-size: 14px; margin-top: 2px; }
+  svg { flex: none; width: 23px; height: 23px; color: #a2a2a2; }
+  .menu { margin-left: auto; color: #999; font-size: 20px; }
+  @media (max-width: 500px) { .row { padding-left: 28px; } }
+</style>
+<main>
+  <h1>Devices</h1>
+  <details open>
+    <summary>Nest Thermostat · MQTT <span class="menu" aria-hidden="true">⋮</span></summary>
+    <div class="row">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 6v2m0 4 4-3"/><circle cx="12" cy="12" r="1"/></svg>
+      <div><div>Nest Thermostat</div><div class="meta">Upstairs · 09AB01AC37180Z3D · 2 entities</div></div>
+    </div>
+  </details>
+</main>
+</html>

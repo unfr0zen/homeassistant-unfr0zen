@@ -23,8 +23,14 @@ schedule. This integration puts that schedule in Home Assistant, as calendars an
 or remove a change, and the Nest takes it, over whichever way Home Assistant reaches it.
 
 <p align="center">
-  <img src="docs/images/heating-card.png" alt="The heating card: the Nest's week of setpoints" width="400">
-  <img src="docs/images/hot-water-card.png" alt="The hot water card: the week's on periods, boost and on/off" width="400">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/heating-card-dark.png">
+    <img src="docs/images/heating-card-light.png" alt="The heating card: the Nest's week of setpoints" width="400">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/hot-water-card-dark.png">
+    <img src="docs/images/hot-water-card-light.png" alt="The hot water card: the week's on periods, boost and on/off" width="400">
+  </picture>
 </p>
 
 ## Features
@@ -76,16 +82,18 @@ Copy `custom_components/unfr0zen` into your configuration's `custom_components/`
 Click **Add integration** above, or go to **Settings → Devices & services → Add integration → unfr0zen**, and pick how
 Home Assistant reaches the Nest. A Nest on MQTT shows up under **Discovered** by itself.
 
-<p align="center">
-  <img src="docs/images/add-device.png" alt="Choosing how Home Assistant reaches the Nest" width="480">
-</p>
-
 Add one entry per Nest. Expand the thermostat’s name and connection to see its area, serial number (when available), and unfr0zen entities. The thermostat’s unfr0zen device links to its transport device. Its device page shows the reported firmware version, a **Wake screen** button, and read-only unfr0zen update status. Display settings appear when the thermostat exposes them. Direct MQTT supports the installed home screen themes, always-on, brightness, automatic brightness, and timeout. Zigbee supports the four screen settings. The current Matter firmware exposes none of these display settings. Device controls work independently of the calendars.
 
 ## Using the calendars
 
+Suspended schedules remain editable: calendar changes update the saved week without resuming it, including the selected
+named week over Matter. Schedule enablement and hold controls belong to the protocol integrations, not this extension.
+
 <p align="center">
-  <img src="docs/images/calendar.png" alt="The Nest's heating schedule in Home Assistant's calendar" width="640">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/calendar-dark.png">
+    <img src="docs/images/calendar-light.png" alt="The Nest's heating schedule in Home Assistant's calendar" width="640">
+  </picture>
 </p>
 
 ### Heating, cooling and heat-cool
@@ -109,7 +117,10 @@ schedule, and the Nest keeps to it without Home Assistant. A change to the setpo
 next time.
 
 <p align="center">
-  <img src="docs/images/cooling-card.png" alt="The card while the Nest cools: its cooling schedule, titled Cooling" width="400">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/cooling-card-dark.png">
+    <img src="docs/images/cooling-card-light.png" alt="The card while the Nest cools: its cooling schedule, titled Cooling" width="400">
+  </picture>
 </p>
 
 - Each setpoint is an event repeating every week on its day, from its time until the next setpoint, titled with its
@@ -188,13 +199,25 @@ entity: calendar.nest_thermostat_hot_water_schedule
   time around it, a heating slot as far as its neighbours, which take up the difference, can keep 15 minutes.
 
 <p align="center">
-  <img src="docs/images/heating-editor.png" alt="Editing a day of the heating schedule" width="400">
-  <img src="docs/images/cooling-editor.png" alt="Editing a day of the cooling schedule" width="400">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/heating-editor-dark.png">
+    <img src="docs/images/heating-editor-light.png" alt="Editing a day of the heating schedule" width="400">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/cooling-editor-dark.png">
+    <img src="docs/images/cooling-editor-light.png" alt="Editing a day of the cooling schedule" width="400">
+  </picture>
 </p>
 
 <p align="center">
-  <img src="docs/images/heat-cool-card.png" alt="The card while the Nest is in Heat·Cool: lows and highs" width="400">
-  <img src="docs/images/heat-cool-editor.png" alt="Editing a day of the heat-cool schedule: a low and a high for each change" width="400">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/heat-cool-card-dark.png">
+    <img src="docs/images/heat-cool-card-light.png" alt="The card while the Nest is in Heat·Cool: lows and highs" width="400">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/heat-cool-editor-dark.png">
+    <img src="docs/images/heat-cool-editor-light.png" alt="Editing a day of the heat-cool schedule: a low and a high for each change" width="400">
+  </picture>
 </p>
 
 The cards find the Nest's climate entity, hot water switch, boost and hot water sensor on its device. Set them yourself
@@ -235,6 +258,16 @@ uv pip install -p .venv -r requirements_test.txt
 .venv/bin/python -m pytest
 .venv/bin/ruff format --check . && .venv/bin/ruff check .
 ```
+
+With Docker running and Compose installed, regenerate all light and dark README screenshots with one command.
+
+```sh
+uv run --script scripts/screenshots.py
+```
+
+The script downloads Chromium on first use and starts a temporary Home Assistant instance with the integration from
+this checkout. It loads an example thermostat over MQTT, captures a fixed week, and writes the PNGs to `docs/images/`
+after all views have been captured.
 
 ## License
 
