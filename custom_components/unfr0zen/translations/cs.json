@@ -1,6 +1,6 @@
 {
   "config": {
-    "flow_title": "{base}",
+    "flow_title": "{thermostat}",
     "step": {
       "user": {
         "title": "Jak se Home Assistant připojí k termostatu Nest",
@@ -12,7 +12,7 @@
         }
       },
       "confirm": {
-        "description": "Přidat plán, který nestlocal publikuje v {base}?"
+        "description": "Přidat plán pro {thermostat}?"
       },
       "nestlocal": {
         "data": {
@@ -62,6 +62,32 @@
       "hot_water": {
         "name": "Plán teplé vody"
       }
+    },
+    "button": {
+      "wake_screen": {
+        "name": "Probudit displej"
+      }
+    },
+    "select": {
+      "theme": {
+        "name": "Motiv domovské obrazovky"
+      }
+    },
+    "switch": {
+      "screen_always_on": {
+        "name": "Trvale zapnutý displej"
+      },
+      "screen_brightness_auto": {
+        "name": "Automatický jas displeje"
+      }
+    },
+    "number": {
+      "screen_brightness": {
+        "name": "Jas displeje"
+      },
+      "screen_timeout": {
+        "name": "Čas do zhasnutí displeje"
+      }
     }
   },
   "services": {
@@ -97,7 +123,7 @@
       "message": "Tento plán Nest ({mode}) nelze z Home Assistant změnit"
     },
     "mqtt_nothing": {
-      "message": "V {topic} nic není"
+      "message": "Přes MQTT nebyl přijat žádný plán"
     },
     "mqtt_not_taken_schedule": {
       "message": "Nest plán nepřijal: viz protokol nestlocal"
@@ -106,7 +132,7 @@
       "message": "Nest plán teplé vody nepřijal: viz protokol nestlocal"
     },
     "z2m_nothing": {
-      "message": "Zigbee2MQTT neposlal {key} pro {topic}"
+      "message": "Zigbee2MQTT neodeslalo {key}"
     },
     "z2m_not_taken_schedule": {
       "message": "Nest plán přes Zigbee2MQTT nepřijal"

@@ -36,9 +36,11 @@ async def test_mqtt_discovery_adds_the_topic_it_saw(hass, mqtt_mock):
         DOMAIN, context={"source": config_entries.SOURCE_MQTT}, data=info
     )
     assert result["step_id"] == "confirm"
+    assert result["description_placeholders"] == {"thermostat": "Nest Thermostat · MQTT"}
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {})
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"] == {"transport": "nestlocal", "base": "nestlocal/02AA01AC"}
+    assert result["title"] == "Nest Thermostat · MQTT"
     assert result["result"].unique_id == "nestlocal:nestlocal/02AA01AC"
 
 
@@ -80,6 +82,7 @@ async def test_zigbee2mqtt_lists_the_nests_it_has(hass, mqtt_mock):
     assert result["step_id"] == "zigbee2mqtt_device"
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {"friendly_name": "Hallway"})
     assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["title"] == "Hallway · Zigbee"
     assert result["data"] == {
         "transport": "zigbee2mqtt",
         "base": "zigbee2mqtt",
@@ -110,7 +113,10 @@ async def test_zha_picks_a_nest_from_its_devices(hass):
     assert [o["value"] for o in result["data_schema"].schema["device_id"].config["options"]] == [nest.id]
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {"device_id": nest.id})
     assert result["type"] is FlowResultType.CREATE_ENTRY
-    assert (result["title"], result["data"]) == ("Landing", {"transport": "zha", "ieee": "00:12:4b:00:12:34:56:78"})
+    assert (result["title"], result["data"]) == (
+        "Landing · Zigbee",
+        {"transport": "zha", "ieee": "00:12:4b:00:12:34:56:78"},
+    )
 
 
 async def test_matter_without_a_nest_aborts(hass):
@@ -129,8 +135,12 @@ async def test_matter_picks_a_nest_from_its_devices(hass):
         manufacturer="Google Nest",
         model="Nest Learning Thermostat",
         name="Lounge",
+        serial_number="09AB01AC37180Z3D",
     )
     result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": config_entries.SOURCE_USER})
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {"next_step_id": "matter"})
     result = await hass.config_entries.flow.async_configure(result["flow_id"], {"device_id": nest.id})
-    assert (result["title"], result["data"]) == ("Lounge", {"transport": "matter", "device_id": nest.id})
+    assert (result["title"], result["data"]) == (
+        "Lounge · Matter",
+        {"transport": "matter", "device_id": nest.id},
+    )

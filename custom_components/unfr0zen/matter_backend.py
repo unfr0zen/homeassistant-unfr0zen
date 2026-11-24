@@ -152,6 +152,12 @@ class MatterBackend(Backend):
 
         return unsubscribe
 
+    async def async_wake_screen(self) -> None:
+        from chip.clusters.Objects import Identify
+
+        client, node = self._node()
+        await _call(client.send_device_command(node.node_id, ENDPOINT, Identify.Commands.Identify(identifyTime=5)))
+
     async def async_read(self) -> Any:
         client, node = self._node()
         endpoint = self._endpoint(node)
@@ -384,6 +390,11 @@ def read(node: Any, endpoint: int = ENDPOINT) -> Schedule:
         active = node.get_attribute_value(endpoint, Thermostat, Thermostat.Attributes.ActiveScheduleHandle)
         if isinstance(active, bytes):
             handle = active
+        else:
+            # While paused, the unit lists the selected logical week first.
+            schedules = node.get_attribute_value(endpoint, Thermostat, Thermostat.Attributes.Schedules) or []
+            if schedules:
+                handle = schedules[0].scheduleHandle
     nest = _schedule(node, endpoint, handle)
     modes = {v: k for k, v in SYSTEM_MODE.items()}
     if nest is None:

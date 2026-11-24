@@ -1,6 +1,6 @@
 {
   "config": {
-    "flow_title": "{base}",
+    "flow_title": "{thermostat}",
     "step": {
       "user": {
         "title": "Como o Home Assistant chega ao Nest",
@@ -12,7 +12,7 @@
         }
       },
       "confirm": {
-        "description": "Adicionar a programação que o nestlocal publica em {base}?"
+        "description": "Adicionar a programação de {thermostat}?"
       },
       "nestlocal": {
         "data": {
@@ -62,6 +62,32 @@
       "hot_water": {
         "name": "Programação de água quente"
       }
+    },
+    "button": {
+      "wake_screen": {
+        "name": "Ativar tela"
+      }
+    },
+    "select": {
+      "theme": {
+        "name": "Tema da tela inicial"
+      }
+    },
+    "switch": {
+      "screen_always_on": {
+        "name": "Tela sempre ligada"
+      },
+      "screen_brightness_auto": {
+        "name": "Brilho automático da tela"
+      }
+    },
+    "number": {
+      "screen_brightness": {
+        "name": "Brilho da tela"
+      },
+      "screen_timeout": {
+        "name": "Tempo para apagar a tela"
+      }
     }
   },
   "services": {
@@ -97,7 +123,7 @@
       "message": "Esta programação do Nest ({mode}) não pode ser alterada pelo Home Assistant"
     },
     "mqtt_nothing": {
-      "message": "Nada em {topic}"
+      "message": "Nenhuma programação recebida via MQTT"
     },
     "mqtt_not_taken_schedule": {
       "message": "O Nest não aceitou a programação: veja o log do nestlocal"
@@ -106,7 +132,7 @@
       "message": "O Nest não aceitou a programação de água quente: veja o log do nestlocal"
     },
     "z2m_nothing": {
-      "message": "O Zigbee2MQTT não enviou {key} para {topic}"
+      "message": "O Zigbee2MQTT não enviou {key}"
     },
     "z2m_not_taken_schedule": {
       "message": "O Nest não aceitou a programação pelo Zigbee2MQTT"

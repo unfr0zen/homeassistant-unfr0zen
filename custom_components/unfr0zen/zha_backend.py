@@ -50,6 +50,11 @@ class ZhaBackend(Backend):
         except (ImportError, KeyError, AttributeError, ValueError) as err:
             raise error("zha_no_cluster", cluster=f"0x{cluster_id:04X}", ieee=self.ieee, error=repr(err)) from err
 
+    async def async_wake_screen(self) -> None:
+        from zigpy.zcl.clusters.general import Identify
+
+        await self._cluster(Identify.cluster_id).identify(identify_time=5)
+
     async def async_read(self) -> Schedule:
         cluster = self._cluster()
         modes, week = set(), []

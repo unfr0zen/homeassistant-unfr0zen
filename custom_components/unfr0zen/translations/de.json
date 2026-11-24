@@ -1,6 +1,6 @@
 {
   "config": {
-    "flow_title": "{base}",
+    "flow_title": "{thermostat}",
     "step": {
       "user": {
         "title": "Wie Home Assistant den Nest erreicht",
@@ -12,7 +12,7 @@
         }
       },
       "confirm": {
-        "description": "Den Zeitplan hinzufügen, den nestlocal auf {base} veröffentlicht?"
+        "description": "Zeitplan für {thermostat} hinzufügen?"
       },
       "nestlocal": {
         "data": {
@@ -62,6 +62,32 @@
       "hot_water": {
         "name": "Warmwasserplan"
       }
+    },
+    "button": {
+      "wake_screen": {
+        "name": "Display aufwecken"
+      }
+    },
+    "select": {
+      "theme": {
+        "name": "Design des Startbildschirms"
+      }
+    },
+    "switch": {
+      "screen_always_on": {
+        "name": "Display immer eingeschaltet"
+      },
+      "screen_brightness_auto": {
+        "name": "Automatische Displayhelligkeit"
+      }
+    },
+    "number": {
+      "screen_brightness": {
+        "name": "Displayhelligkeit"
+      },
+      "screen_timeout": {
+        "name": "Zeit bis zum Ausschalten des Displays"
+      }
     }
   },
   "services": {
@@ -97,7 +123,7 @@
       "message": "Dieser Nest-Zeitplan ({mode}) kann nicht über Home Assistant geändert werden"
     },
     "mqtt_nothing": {
-      "message": "Nichts auf {topic}"
+      "message": "Kein Zeitplan über MQTT empfangen"
     },
     "mqtt_not_taken_schedule": {
       "message": "Der Nest hat den Zeitplan nicht übernommen: siehe Log von nestlocal"
@@ -106,7 +132,7 @@
       "message": "Der Nest hat den Warmwasserplan nicht übernommen: siehe Log von nestlocal"
     },
     "z2m_nothing": {
-      "message": "Zigbee2MQTT hat kein {key} für {topic} gesendet"
+      "message": "Zigbee2MQTT hat {key} nicht gesendet"
     },
     "z2m_not_taken_schedule": {
       "message": "Der Nest hat den Zeitplan über Zigbee2MQTT nicht übernommen"

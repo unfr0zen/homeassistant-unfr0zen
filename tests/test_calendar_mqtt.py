@@ -1,21 +1,26 @@
 """The calendar over nestlocal's MQTT topics, through Home Assistant's API."""
 
 import asyncio
+from datetime import UTC, datetime, timedelta
 import json
 from unittest.mock import patch
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import area_registry as ar, device_registry as dr, entity_registry as er
 import pytest
-from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_mqtt_message
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_mqtt_message,
+    async_fire_time_changed,
+)
 
 from custom_components.unfr0zen.const import DOMAIN
 
 from .conftest import week
 
 BASE = "nestlocal/02AA01AC"
-ENTITY = "calendar.nestlocal_02aa01ac_heating_schedule"
+ENTITY = "calendar.nest_thermostat_heating_schedule"
 
 
 @pytest.fixture
@@ -88,8 +93,100 @@ async def test_the_calendar_is_on_the_units_own_device(hass: HomeAssistant, mqtt
     entry.add_to_hass(hass)
     setup = hass.async_create_task(hass.config_entries.async_setup(entry.entry_id))
     await retained_on_subscribe(hass, setup, f"{BASE}/heating_times", week())
+    (device,) = dr.async_entries_for_config_entry(devices, entry.entry_id)
+    assert device.via_device_id == nest.id
+    assert device.name == "Nest Thermostat"
+    assert device.model == device.serial_number == "02AA01AC"
     assert er.async_get(hass).async_get("calendar.nest_thermostat_heating_schedule").device_id == nest.id
-    assert dr.async_entries_for_config_entry(devices, entry.entry_id) == [], "no device of its own"
+
+
+async def test_existing_entry_follows_device_and_area_without_changing_its_calendar_id(hass, mqtt_mock):
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id=f"nestlocal:{BASE}", title=BASE, data={"transport": "nestlocal", "base": BASE}
+    )
+    entry.add_to_hass(hass)
+    controls = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id, identifiers={(DOMAIN, entry.entry_id)}, name="Nest Thermostat"
+    )
+    existing = er.async_get(hass).async_get_or_create(
+        "calendar",
+        DOMAIN,
+        entry.unique_id,
+        config_entry=entry,
+        suggested_object_id="nestlocal_02aa01ac_heating_schedule",
+        device_id=controls.id,
+    )
+    setup = hass.async_create_task(hass.config_entries.async_setup(entry.entry_id))
+    await retained_on_subscribe(hass, setup, f"{BASE}/heating_times", week())
+    assert entry.title == "Nest Thermostat · MQTT"
+
+    assert er.async_get(hass).async_get(existing.entity_id).device_id is None
+
+    owner = MockConfigEntry(domain="mqtt")
+    owner.add_to_hass(hass)
+    areas = ar.async_get(hass)
+    room = areas.async_get_or_create("Upstairs")
+    devices = dr.async_get(hass)
+    nest = devices.async_get_or_create(
+        config_entry_id=owner.entry_id, identifiers={("mqtt", "nestlocal_02aa01ac")}, name="Nest Thermostat"
+    )
+    devices.async_update_device(nest.id, name_by_user="Landing Nest", area_id=room.id)
+    await hass.async_block_till_done()
+    assert entry.title == "Landing Nest · MQTT"
+    (device,) = dr.async_entries_for_config_entry(devices, entry.entry_id)
+    assert device.area_id == room.id
+    assert device.name == "Landing Nest"
+    areas.async_update(room.id, name="Landing")
+    await hass.async_block_till_done()
+    assert entry.title == "Landing Nest · MQTT"
+    assert hass.states.get(existing.entity_id) is not None
+    assert er.async_get(hass).async_get(existing.entity_id).device_id == nest.id
+
+
+async def test_device_controls_work_while_the_calendar_retries(hass, mqtt_mock, caplog):
+    entry = MockConfigEntry(
+        domain=DOMAIN, unique_id=f"nestlocal:{BASE}", title=BASE, data={"transport": "nestlocal", "base": BASE}
+    )
+    entry.add_to_hass(hass)
+    with patch("custom_components.unfr0zen.mqtt_backend.READ_TIMEOUT", 0):
+        await hass.config_entries.async_setup(entry.entry_id)
+    assert entry.state is ConfigEntryState.LOADED
+    assert entry.title == "Nest Thermostat · MQTT"
+    assert "No schedule received over MQTT" in caplog.text
+    assert hass.states.get(ENTITY) is None
+    button = "button.nest_thermostat_wake_screen"
+    update = "update.nest_thermostat_unfr0zen"
+    assert hass.states.get(update).state == "unavailable"
+    assert hass.states.get(button).state == "unavailable"
+    async_fire_mqtt_message(hass, f"{BASE}/availability", "online")
+    async_fire_mqtt_message(hass, f"{BASE}/state", json.dumps({"current_version": "5.9", "schedules": True}))
+    async_fire_mqtt_message(
+        hass,
+        f"{BASE}/update",
+        json.dumps({"installed_version": "v0.5.0", "latest_version": "v0.6.0", "in_progress": True}),
+    )
+    await hass.async_block_till_done()
+    state = hass.states.get(update)
+    assert state.state == "on"
+    assert state.attributes["installed_version"] == "v0.5.0"
+    assert state.attributes["in_progress"] is True
+    assert dr.async_get(hass).async_get(entry.runtime_data.device.id).sw_version == "5.9"
+    await hass.services.async_call("button", "press", {"entity_id": button}, blocking=True)
+    assert any(c.args[:2] == (f"{BASE}/set/wake_screen", "PRESS") for c in mqtt_mock.async_publish.call_args_list)
+    async_fire_mqtt_message(
+        hass, f"{BASE}/update", json.dumps({"installed_version": "v0.6.0", "latest_version": "v0.6.0"})
+    )
+    await hass.async_block_till_done()
+    assert hass.states.get(update).state == "off"
+    async_fire_time_changed(hass, datetime.now(UTC) + timedelta(seconds=31))
+    for _ in range(100):
+        async_fire_mqtt_message(hass, f"{BASE}/heating_times", json.dumps(week()), retain=True)
+        await asyncio.sleep(0.01)
+        if hass.states.get(ENTITY):
+            break
+    assert hass.states.get(ENTITY) is not None
+    assert hass.states.get(update).state == "off"
+    assert await hass.config_entries.async_unload(entry.entry_id)
 
 
 async def test_shows_each_setpoint_until_the_next(hass, calendar):

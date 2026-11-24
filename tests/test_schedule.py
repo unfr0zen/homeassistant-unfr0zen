@@ -133,9 +133,7 @@ def test_a_range_title_is_a_low_and_a_high_each_with_its_sign():
 def test_an_error_takes_a_placeholder_named_key():
     from custom_components.unfr0zen.errors import error
 
-    assert str(error("z2m_nothing", key="heating_times", topic="zigbee2mqtt/Hallway")) == (
-        "Zigbee2MQTT sent no heating_times for zigbee2mqtt/Hallway"
-    )
+    assert str(error("z2m_nothing", key="heating_times")) == ("Zigbee2MQTT sent no heating_times")
 
 
 def test_readback_checks_whole_fahrenheit_and_carried_midnight_values():

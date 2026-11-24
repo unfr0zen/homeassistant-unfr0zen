@@ -160,7 +160,10 @@ class NestlocalBackend(_MqttBackend):
         try:
             return await self._await(_any, _nothing, READ_TIMEOUT)
         except TimeoutError as err:
-            raise error("mqtt_nothing", topic=self.state_topic) from err
+            raise error("mqtt_nothing") from err
+
+    async def async_wake_screen(self) -> None:
+        await mqtt.async_publish(self.hass, f"{self.base}/set/wake_screen", "PRESS", qos=1, retain=False)
 
     async def async_write(self, current: Any, days: dict[int, Any]) -> None:
         try:
@@ -240,7 +243,10 @@ class Z2mBackend(_MqttBackend):
         except TimeoutError as err:
             if self.latest is not None:
                 return self.latest
-            raise error("z2m_nothing", key=self.key, topic=self.state_topic) from err
+            raise error("z2m_nothing", key=self.key) from err
+
+    async def async_wake_screen(self) -> None:
+        await self._publish(f"{self.state_topic}/set", {"wake_screen": "wake"})
 
     async def async_write(self, current: Any, days: dict[int, Any]) -> None:
         try:

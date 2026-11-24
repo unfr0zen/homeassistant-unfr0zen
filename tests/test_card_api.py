@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 from homeassistant.components.frontend import DATA_EXTRA_MODULE_URL, UrlManager
 from homeassistant.exceptions import ServiceValidationError
-from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers import area_registry as ar, device_registry as dr, entity_registry as er
 from homeassistant.setup import async_setup_component
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_mqtt_message
@@ -22,8 +22,8 @@ from .test_hot_water_mqtt import BASE, HOT_WATER, setup
 from .test_hot_water_z2m import devices, setup as setup_z2m
 from .test_hot_water_zha import Unit, backend
 
-HEATING_ENTITY = "calendar.nestlocal_02aa01ac_heating_schedule"
-HOT_WATER_ENTITY = "calendar.nestlocal_02aa01ac_hot_water_schedule"
+HEATING_ENTITY = "calendar.nest_thermostat_heating_schedule"
+HOT_WATER_ENTITY = "calendar.nest_thermostat_hot_water_schedule"
 HEATING = week(mon=[("22:00", 17), ("06:30", 22)], sat=[("08:00", 21.5)])
 
 
@@ -69,7 +69,7 @@ async def test_the_heating_calendar_gives_its_week_and_limits(hass, unit):
         "max_temp": 35.0,
         "temp_step": 0.5,
         "max_per_day": 10,
-        "friendly_name": "nestlocal/02AA01AC Heating schedule",
+        "friendly_name": "Nest Thermostat Heating schedule",
         "supported_features": 7,
         "location": "",
         "description": "",
@@ -344,13 +344,50 @@ async def test_without_the_cards_nothing_is_served(hass, hass_client, tmp_path):
     assert (await (await hass_client()).get("/unfr0zen/unfr0zen-cards.js")).status == 404
 
 
+async def test_expanded_thermostat_row_uses_live_registry_data(hass, mqtt_mock, hass_ws_client):
+    owner = MockConfigEntry(domain="mqtt")
+    owner.add_to_hass(hass)
+    devices = dr.async_get(hass)
+    source = devices.async_get_or_create(
+        config_entry_id=owner.entry_id,
+        identifiers={("mqtt", "nestlocal_02aa01ac")},
+        name="Nest Thermostat",
+        serial_number="09AB01AC37180Z3D",
+        model="Nest Learning Thermostat",
+    )
+    room = ar.async_get(hass).async_get_or_create("Upstairs")
+    devices.async_update_device(source.id, area_id=room.id, name_by_user="Hall Nest")
+    entry = await setup(hass, {"heating_times": HEATING, "hot_water_times": HOT_WATER})
+    assert entry.title == "Hall Nest · MQTT"
+    assert await async_setup_component(hass, "config", {})
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "config/device_registry/list"})
+    result = (await client.receive_json())["result"]
+    (device,) = [d for d in result if entry.entry_id in d["config_entries"]]
+    assert device["name"] == "Hall Nest"
+    assert device["area_id"] == room.id
+    assert device["model"] == device["serial_number"] == "09AB01AC37180Z3D"
+    assert device["via_device_id"] == source.id
+    await client.send_json_auto_id({"type": "config/entity_registry/list"})
+    result = (await client.receive_json())["result"]
+    assert {e["entity_id"] for e in result if e["device_id"] == device["id"]} == {
+        "button.upstairs_hall_nest_wake_screen",
+        "update.upstairs_hall_nest_unfr0zen",
+    }
+    assert {e["entity_id"] for e in result if e["device_id"] == source.id} == {
+        "calendar.upstairs_hall_nest_heating_schedule",
+        "calendar.upstairs_hall_nest_hot_water_schedule",
+    }
+    assert devices.async_get(source.id).model == "Nest Learning Thermostat"
+
+
 async def test_an_action_on_the_device_reaches_only_its_calendar_of_that_kind(hass, mqtt_mock):
     mqtt_entry = MockConfigEntry(domain="mqtt")
     mqtt_entry.add_to_hass(hass)
     nest = dr.async_get(hass).async_get_or_create(
         config_entry_id=mqtt_entry.entry_id, identifiers={("mqtt", "nestlocal_02aa01ac")}, name="Nest Thermostat"
     )
-    await setup(hass, {"heating_times": HEATING, "hot_water_times": HOT_WATER})
+    entry = await setup(hass, {"heating_times": HEATING, "hot_water_times": HOT_WATER})
     answer_writes(hass, mqtt_mock, "heating_times", HEATING)
     tue = [{"time": "07:00", "temp": 20.0}]
     await hass.services.async_call(
@@ -361,7 +398,7 @@ async def test_an_action_on_the_device_reaches_only_its_calendar_of_that_kind(ha
     await hass.services.async_call(
         "unfr0zen",
         "set_hot_water_schedule",
-        {"device_id": nest.id, "days": {"tue": [{"on": "07:00", "off": "08:00"}]}},
+        {"device_id": entry.runtime_data.device.id, "days": {"tue": [{"on": "07:00", "off": "08:00"}]}},
         blocking=True,
     )
     assert written(mqtt_mock, "hot_water_times") == [{"tue": [{"on": "07:00", "off": "08:00"}]}]

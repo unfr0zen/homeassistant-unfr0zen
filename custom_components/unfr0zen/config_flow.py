@@ -28,6 +28,7 @@ from .const import (
     Z2M,
     ZHA,
 )
+from .device import thermostat_device, thermostat_title
 
 # How long to wait for a retained message when asked to look at a topic.
 RETAINED_TIMEOUT = 5
@@ -55,13 +56,16 @@ class ScheduleConfigFlow(ConfigFlow, domain=DOMAIN):
         await self.async_set_unique_id(f"{NESTLOCAL}:{base}")
         self._abort_if_unique_id_configured()
         self._base = base
-        self.context["title_placeholders"] = {"base": base}
+        data = {CONF_TRANSPORT: NESTLOCAL, CONF_BASE: base}
+        self.context["title_placeholders"] = {"thermostat": self._title(data)}
         return await self.async_step_confirm()
 
     async def async_step_confirm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        data = {CONF_TRANSPORT: NESTLOCAL, CONF_BASE: self._base}
+        title = self._title(data)
         if user_input is None:
-            return self.async_show_form(step_id="confirm", description_placeholders={"base": self._base})
-        return self.async_create_entry(title=self._base, data={CONF_TRANSPORT: NESTLOCAL, CONF_BASE: self._base})
+            return self.async_show_form(step_id="confirm", description_placeholders={"thermostat": title})
+        return self.async_create_entry(title=title, data=data)
 
     async def async_step_nestlocal(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors = {}
@@ -74,7 +78,8 @@ class ScheduleConfigFlow(ConfigFlow, domain=DOMAIN):
             else:
                 await self.async_set_unique_id(f"{NESTLOCAL}:{base}")
                 self._abort_if_unique_id_configured()
-                return self.async_create_entry(title=base, data={CONF_TRANSPORT: NESTLOCAL, CONF_BASE: base})
+                data = {CONF_TRANSPORT: NESTLOCAL, CONF_BASE: base}
+                return self.async_create_entry(title=self._title(data), data=data)
         return self.async_show_form(
             step_id="nestlocal",
             data_schema=vol.Schema({vol.Required(CONF_BASE, default="nestlocal/"): str}),
@@ -109,12 +114,14 @@ class ScheduleConfigFlow(ConfigFlow, domain=DOMAIN):
             ieee = self._z2m[name]
             await self.async_set_unique_id(f"{Z2M}:{ieee}")
             self._abort_if_unique_id_configured()
-            return self.async_create_entry(
-                title=name, data={CONF_TRANSPORT: Z2M, CONF_BASE: self._base, CONF_NAME: name, CONF_IEEE: ieee}
-            )
+            data = {CONF_TRANSPORT: Z2M, CONF_BASE: self._base, CONF_NAME: name, CONF_IEEE: ieee}
+            return self.async_create_entry(title=self._title(data), data=data)
+        labels = {
+            name: self._title({CONF_TRANSPORT: Z2M, CONF_NAME: name, CONF_IEEE: ieee})
+            for name, ieee in sorted(self._z2m.items())
+        }
         return self.async_show_form(
-            step_id="zigbee2mqtt_device",
-            data_schema=vol.Schema({vol.Required(CONF_NAME): vol.In(sorted(self._z2m))}),
+            step_id="zigbee2mqtt_device", data_schema=vol.Schema({vol.Required(CONF_NAME): vol.In(labels)})
         )
 
     async def async_step_zha(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -126,7 +133,8 @@ class ScheduleConfigFlow(ConfigFlow, domain=DOMAIN):
             ieee = next(i for domain, i in device.identifiers if domain == ZHA)
             await self.async_set_unique_id(f"{ZHA}:{ieee}")
             self._abort_if_unique_id_configured()
-            return self.async_create_entry(title=_name(device), data={CONF_TRANSPORT: ZHA, CONF_IEEE: ieee})
+            data = {CONF_TRANSPORT: ZHA, CONF_IEEE: ieee}
+            return self.async_create_entry(title=thermostat_title(data, device), data=data)
         return self._pick_device(ZHA, devices)
 
     async def async_step_matter(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -137,7 +145,8 @@ class ScheduleConfigFlow(ConfigFlow, domain=DOMAIN):
             device = devices[user_input[CONF_DEVICE]]
             await self.async_set_unique_id(f"{MATTER}:{device.id}")
             self._abort_if_unique_id_configured()
-            return self.async_create_entry(title=_name(device), data={CONF_TRANSPORT: MATTER, CONF_DEVICE: device.id})
+            data = {CONF_TRANSPORT: MATTER, CONF_DEVICE: device.id}
+            return self.async_create_entry(title=thermostat_title(data, device), data=data)
         return self._pick_device(MATTER, devices)
 
     @callback
@@ -155,15 +164,16 @@ class ScheduleConfigFlow(ConfigFlow, domain=DOMAIN):
 
     @callback
     def _pick_device(self, step: str, devices: dict[str, dr.DeviceEntry]) -> ConfigFlowResult:
-        options = [SelectOptionDict(value=i, label=_name(d)) for i, d in devices.items()]
+        options = [
+            SelectOptionDict(value=i, label=thermostat_title({CONF_TRANSPORT: step}, d)) for i, d in devices.items()
+        ]
         return self.async_show_form(
             step_id=step,
             data_schema=vol.Schema({vol.Required(CONF_DEVICE): SelectSelector(SelectSelectorConfig(options=options))}),
         )
 
-
-def _name(device: dr.DeviceEntry) -> str:
-    return device.name_by_user or device.name or device.id
+    def _title(self, data: dict) -> str:
+        return thermostat_title(data, thermostat_device(self.hass, data))
 
 
 async def _retained(flow: ScheduleConfigFlow, topic: str) -> Any:

@@ -1,6 +1,6 @@
 {
   "config": {
-    "flow_title": "{base}",
+    "flow_title": "{thermostat}",
     "step": {
       "user": {
         "title": "Slik når Home Assistant Nest-termostaten",
@@ -12,7 +12,7 @@
         }
       },
       "confirm": {
-        "description": "Legge til timeplanen nestlocal publiserer på {base}?"
+        "description": "Vil du legge til tidsplanen for {thermostat}?"
       },
       "nestlocal": {
         "data": {
@@ -62,6 +62,32 @@
       "hot_water": {
         "name": "Timeplan for varmtvann"
       }
+    },
+    "button": {
+      "wake_screen": {
+        "name": "Vekk skjermen"
+      }
+    },
+    "select": {
+      "theme": {
+        "name": "Tema for startskjermen"
+      }
+    },
+    "switch": {
+      "screen_always_on": {
+        "name": "Skjerm alltid på"
+      },
+      "screen_brightness_auto": {
+        "name": "Automatisk lysstyrke"
+      }
+    },
+    "number": {
+      "screen_brightness": {
+        "name": "Skjermlysstyrke"
+      },
+      "screen_timeout": {
+        "name": "Tid før skjermen slås av"
+      }
     }
   },
   "services": {
@@ -97,7 +123,7 @@
       "message": "Denne Nest-timeplanen ({mode}) kan ikke endres fra Home Assistant"
     },
     "mqtt_nothing": {
-      "message": "Ingenting på {topic}"
+      "message": "Ingen tidsplan mottatt via MQTT"
     },
     "mqtt_not_taken_schedule": {
       "message": "Nest tok ikke imot timeplanen: se nestlocals logg"
@@ -106,7 +132,7 @@
       "message": "Nest tok ikke imot timeplanen for varmtvann: se nestlocals logg"
     },
     "z2m_nothing": {
-      "message": "Zigbee2MQTT sendte ingen {key} for {topic}"
+      "message": "Zigbee2MQTT sendte ikke {key}"
     },
     "z2m_not_taken_schedule": {
       "message": "Nest tok ikke imot timeplanen via Zigbee2MQTT"

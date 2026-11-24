@@ -1,6 +1,6 @@
 {
   "config": {
-    "flow_title": "{base}",
+    "flow_title": "{thermostat}",
     "step": {
       "user": {
         "title": "Jak Home Assistant łączy się z termostatem Nest",
@@ -12,7 +12,7 @@
         }
       },
       "confirm": {
-        "description": "Dodać harmonogram publikowany przez nestlocal w {base}?"
+        "description": "Dodać harmonogram dla {thermostat}?"
       },
       "nestlocal": {
         "data": {
@@ -62,6 +62,32 @@
       "hot_water": {
         "name": "Harmonogram ciepłej wody"
       }
+    },
+    "button": {
+      "wake_screen": {
+        "name": "Wybudź ekran"
+      }
+    },
+    "select": {
+      "theme": {
+        "name": "Motyw ekranu głównego"
+      }
+    },
+    "switch": {
+      "screen_always_on": {
+        "name": "Ekran zawsze włączony"
+      },
+      "screen_brightness_auto": {
+        "name": "Automatyczna jasność ekranu"
+      }
+    },
+    "number": {
+      "screen_brightness": {
+        "name": "Jasność ekranu"
+      },
+      "screen_timeout": {
+        "name": "Czas wygaszania ekranu"
+      }
     }
   },
   "services": {
@@ -97,7 +123,7 @@
       "message": "Tego harmonogramu Nest ({mode}) nie można zmienić z Home Assistant"
     },
     "mqtt_nothing": {
-      "message": "Brak danych w {topic}"
+      "message": "Nie odebrano harmonogramu przez MQTT"
     },
     "mqtt_not_taken_schedule": {
       "message": "Nest nie przyjął harmonogramu: sprawdź dziennik nestlocal"
@@ -106,7 +132,7 @@
       "message": "Nest nie przyjął harmonogramu ciepłej wody: sprawdź dziennik nestlocal"
     },
     "z2m_nothing": {
-      "message": "Zigbee2MQTT nie wysłał {key} dla {topic}"
+      "message": "Zigbee2MQTT nie wysłało {key}"
     },
     "z2m_not_taken_schedule": {
       "message": "Nest nie przyjął harmonogramu przez Zigbee2MQTT"

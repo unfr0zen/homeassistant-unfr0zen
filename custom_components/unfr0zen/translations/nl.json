@@ -1,6 +1,6 @@
 {
   "config": {
-    "flow_title": "{base}",
+    "flow_title": "{thermostat}",
     "step": {
       "user": {
         "title": "Hoe Home Assistant de Nest bereikt",
@@ -12,7 +12,7 @@
         }
       },
       "confirm": {
-        "description": "Het schema toevoegen dat nestlocal op {base} publiceert?"
+        "description": "Het schema voor {thermostat} toevoegen?"
       },
       "nestlocal": {
         "data": {
@@ -62,6 +62,32 @@
       "hot_water": {
         "name": "Warmwaterschema"
       }
+    },
+    "button": {
+      "wake_screen": {
+        "name": "Scherm wekken"
+      }
+    },
+    "select": {
+      "theme": {
+        "name": "Thema van het startscherm"
+      }
+    },
+    "switch": {
+      "screen_always_on": {
+        "name": "Scherm altijd aan"
+      },
+      "screen_brightness_auto": {
+        "name": "Automatische schermhelderheid"
+      }
+    },
+    "number": {
+      "screen_brightness": {
+        "name": "Schermhelderheid"
+      },
+      "screen_timeout": {
+        "name": "Time-out van het scherm"
+      }
     }
   },
   "services": {
@@ -97,7 +123,7 @@
       "message": "Dit Nest-schema ({mode}) kan niet vanuit Home Assistant worden gewijzigd"
     },
     "mqtt_nothing": {
-      "message": "Niets op {topic}"
+      "message": "Geen schema ontvangen via MQTT"
     },
     "mqtt_not_taken_schedule": {
       "message": "De Nest heeft het schema niet overgenomen: zie het log van nestlocal"
@@ -106,7 +132,7 @@
       "message": "De Nest heeft het warmwaterschema niet overgenomen: zie het log van nestlocal"
     },
     "z2m_nothing": {
-      "message": "Zigbee2MQTT stuurde geen {key} voor {topic}"
+      "message": "Zigbee2MQTT heeft {key} niet verzonden"
     },
     "z2m_not_taken_schedule": {
       "message": "De Nest heeft het schema via Zigbee2MQTT niet overgenomen"

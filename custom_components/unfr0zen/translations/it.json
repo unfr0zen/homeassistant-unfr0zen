@@ -1,6 +1,6 @@
 {
   "config": {
-    "flow_title": "{base}",
+    "flow_title": "{thermostat}",
     "step": {
       "user": {
         "title": "Come Home Assistant raggiunge il Nest",
@@ -12,7 +12,7 @@
         }
       },
       "confirm": {
-        "description": "Aggiungere la programmazione che nestlocal pubblica su {base}?"
+        "description": "Aggiungere la programmazione di {thermostat}?"
       },
       "nestlocal": {
         "data": {
@@ -62,6 +62,32 @@
       "hot_water": {
         "name": "Programmazione acqua calda"
       }
+    },
+    "button": {
+      "wake_screen": {
+        "name": "Riattiva schermo"
+      }
+    },
+    "select": {
+      "theme": {
+        "name": "Tema della schermata iniziale"
+      }
+    },
+    "switch": {
+      "screen_always_on": {
+        "name": "Schermo sempre acceso"
+      },
+      "screen_brightness_auto": {
+        "name": "Luminosità automatica"
+      }
+    },
+    "number": {
+      "screen_brightness": {
+        "name": "Luminosità dello schermo"
+      },
+      "screen_timeout": {
+        "name": "Tempo di spegnimento dello schermo"
+      }
     }
   },
   "services": {
@@ -97,7 +123,7 @@
       "message": "Questa programmazione del Nest ({mode}) non può essere modificata da Home Assistant"
     },
     "mqtt_nothing": {
-      "message": "Niente su {topic}"
+      "message": "Nessuna programmazione ricevuta tramite MQTT"
     },
     "mqtt_not_taken_schedule": {
       "message": "Il Nest non ha accettato la programmazione: vedi il registro di nestlocal"
@@ -106,7 +132,7 @@
       "message": "Il Nest non ha accettato la programmazione dell'acqua calda: vedi il registro di nestlocal"
     },
     "z2m_nothing": {
-      "message": "Zigbee2MQTT non ha inviato alcun {key} per {topic}"
+      "message": "Zigbee2MQTT non ha inviato {key}"
     },
     "z2m_not_taken_schedule": {
       "message": "Il Nest non ha accettato la programmazione tramite Zigbee2MQTT"

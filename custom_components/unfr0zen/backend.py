@@ -31,6 +31,10 @@ class Backend:
         """Starts listening for pushed schedules; returns the stop."""
         return lambda: None
 
+    async def async_wake_screen(self) -> None:
+        """Wake the thermostat display."""
+        raise NotImplementedError
+
     async def async_read(self) -> Schedule:
         """The unit's schedule now."""
         raise NotImplementedError

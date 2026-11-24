@@ -2,17 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 import datetime as dt
 import logging
 from pathlib import Path
 from typing import Any
 
+from homeassistant.components import mqtt
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
-from homeassistant.helpers import config_validation as cv
+from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError, PlatformNotReady
+from homeassistant.helpers import config_validation as cv, device_registry as dr
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import ConfigType
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -33,13 +35,15 @@ from .const import (
     Z2M,
     ZHA,
 )
+from .device import register_thermostat, track_mqtt_firmware
+from .display import DisplaySettings
 from .matter_backend import MatterBackend, MatterHotWater
 from .mqtt_backend import NestlocalBackend, NestlocalHotWater, Z2mBackend, Z2mHotWater
 from .zha_backend import ZhaBackend, ZhaHotWater
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.CALENDAR]
+PLATFORMS = [Platform.BUTTON, Platform.UPDATE, Platform.SELECT, Platform.SWITCH, Platform.NUMBER, Platform.CALENDAR]
 
 # How long an entry whose hot water failed to start waits to try again.
 HOT_WATER_RETRY = dt.timedelta(minutes=5)
@@ -79,6 +83,8 @@ class Runtime:
     """An entry's schedules: hot water only on a unit that has it."""
 
     schedule: ScheduleCoordinator
+    device: dr.DeviceEntry
+    display: DisplaySettings
     hot_water: ScheduleCoordinator | None = None
 
 
@@ -135,22 +141,42 @@ def hot_water_backend_for(hass: HomeAssistant, data: dict) -> HotWaterBackend | 
 
 async def _start(entry: ScheduleConfigEntry, coordinator: ScheduleCoordinator) -> None:
     try:
-        entry.async_on_unload(await coordinator.backend.async_start(coordinator.async_set_updated_data))
-        coordinator.backend.request_refresh = coordinator.async_request_refresh
+        stop = await coordinator.backend.async_start(coordinator.async_set_updated_data)
     except HomeAssistantError as err:
-        # The integration the unit is reached through may still be starting.
-        raise ConfigEntryNotReady(str(err)) from err
-    await coordinator.async_config_entry_first_refresh()
+        raise PlatformNotReady(str(err)) from err
+    coordinator.backend.request_refresh = coordinator.async_request_refresh
+    try:
+        await coordinator.async_refresh()
+        if not coordinator.last_update_success:
+            raise PlatformNotReady(str(coordinator.last_exception))
+    except BaseException:
+        coordinator.backend.request_refresh = None
+        stop()
+        raise
+    entry.async_on_unload(stop)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ScheduleConfigEntry) -> bool:
-    """Starts the backends and the calendars."""
-    data = dict(entry.data)
-    runtime = Runtime(ScheduleCoordinator(hass, entry, backend_for(hass, data)))
-    hot_water = hot_water_backend_for(hass, data)
+    """Register the thermostat before its independent entity platforms start."""
+    device = register_thermostat(hass, entry)
+    if entry.data[CONF_TRANSPORT] in (NESTLOCAL, Z2M):
+        if not await mqtt.async_wait_for_mqtt_client(hass):
+            raise ConfigEntryNotReady("Waiting for MQTT")
+        await track_mqtt_firmware(hass, entry, device)
+    backend = backend_for(hass, dict(entry.data))
+    display = DisplaySettings(hass, entry)
+    await display.async_start()
+    entry.runtime_data = Runtime(ScheduleCoordinator(hass, entry, backend), device, display)
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    return True
+
+
+async def async_start_calendars(hass: HomeAssistant, entry: ScheduleConfigEntry) -> None:
+    """Start the calendars when their transport can supply a schedule."""
+    runtime = entry.runtime_data
+    hot_water = hot_water_backend_for(hass, dict(entry.data))
     presence = None
     if hot_water is not None:
-        entry.async_on_unload(hot_water.async_stop)
         # Whether the unit has hot water is learned while the heating starts.
         presence = hass.async_create_task(hot_water.async_present())
     try:
@@ -158,8 +184,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ScheduleConfigEntry) -> 
     except BaseException:
         if presence is not None:
             presence.cancel()
+            await asyncio.gather(presence, return_exceptions=True)
+        if hot_water is not None:
+            hot_water.async_stop()
         raise
     if hot_water is not None and presence is not None:
+        entry.async_on_unload(hot_water.async_stop)
         present = await presence
         # The calendar comes and goes with the unit's hot water.
         await hot_water.async_watch(present, lambda: hass.config_entries.async_schedule_reload(entry.entry_id))
@@ -167,7 +197,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ScheduleConfigEntry) -> 
             runtime.hot_water = ScheduleCoordinator(hass, entry, hot_water, f"{DOMAIN} hot water")
             try:
                 await _start(entry, runtime.hot_water)
-            except ConfigEntryNotReady as err:
+            except PlatformNotReady as err:
                 # The heating goes on without it; the entry retries later.
                 _LOGGER.warning(
                     "%s: hot water schedule unavailable, retrying in %s: %s", entry.title, HOT_WATER_RETRY, err
@@ -178,9 +208,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ScheduleConfigEntry) -> 
                         hass, HOT_WATER_RETRY, lambda _: hass.config_entries.async_schedule_reload(entry.entry_id)
                     )
                 )
-    entry.runtime_data = runtime
-    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ScheduleConfigEntry) -> bool:

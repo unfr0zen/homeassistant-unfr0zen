@@ -43,7 +43,9 @@ or remove a change, and the Nest takes it, over whichever way Home Assistant rea
 ## Requirements
 
 - Home Assistant 2026.10 or later.
-- A Nest set up with [unfr0zen](https://github.com/unfr0zen/unfr0zen), at a release with schedules, reached over one of:
+- A Nest thermostat running **unfr0zen firmware v0.5.5 or later**. [unfr0zen firmware](https://github.com/unfr0zen/unfr0zen)
+
+Connect the thermostat using one of the following transports.
 
 | Transport | Home Assistant needs |
 |-|-|
@@ -78,7 +80,7 @@ Home Assistant reaches the Nest. A Nest on MQTT shows up under **Discovered** by
   <img src="docs/images/add-device.png" alt="Choosing how Home Assistant reaches the Nest" width="480">
 </p>
 
-Add one entry per Nest. The calendars join the Nest's existing device.
+Add one entry per Nest. Expand the thermostat’s name and connection to see its area, serial number (when available), and unfr0zen entities. The thermostat’s unfr0zen device links to its transport device. Its device page shows the reported firmware version, a **Wake screen** button, and read-only unfr0zen update status. Display settings appear when the thermostat exposes them. Direct MQTT supports the installed home screen themes, always-on, brightness, automatic brightness, and timeout. Zigbee supports the four screen settings. The current Matter firmware exposes none of these display settings. Device controls work independently of the calendars.
 
 ## Using the calendars
 
