@@ -195,10 +195,9 @@ function zonedNow(timeZone) {
   return { day: day < 0 ? 0 : day, minute: Number(part("hour")) * 60 + Number(part("minute")) };
 }
 
-/** When a change `ahead` minutes from now, on `day`, at `minute`, happens: "at 22:30", "tomorrow 06:30", "Wed 06:30". */
+/** When a change `ahead` minutes from now, on `day`, at `minute`, happens: "at 22:30", "Wed 06:30". */
 function when(now, day, minute, ahead) {
   if (day === now.day && ahead < DAY) return t("when_at", { time: clock(minute) });
-  if (day === (now.day + 1) % 7 && ahead < 2 * DAY) return t("when_tomorrow", { time: clock(minute) });
   return t("when_day", { day: dayName(day), time: clock(minute) });
 }
 
@@ -217,26 +216,12 @@ function along(minute) {
   return `${(minute / DAY) * 100}%`;
 }
 
-/** The header's layouts, the first that fits taken: the controls beside the titles, then the same with only the
- * pills' icons, then the controls on a line of their own, then that with only the icons. */
-const HEAD_LAYOUTS = [[], ["compact"], ["wrapped"], ["wrapped", "compact"]];
-
-/** Hides what doesn't fit in `root` as laid out: the header's pill texts, as HEAD_LAYOUTS has them; a slot's label
- * wider than its slot; the axis's in-between hours while its labels would touch (then all but its ends, then all but
- * midnight). */
+/** Fit the header, slot labels and time axis to the card's available width. */
 function fit(root) {
   for (const head of root.querySelectorAll(".head")) {
     const titles = head.querySelector(".titles");
-    const controls = head.querySelector(".controls");
-    for (const layout of HEAD_LAYOUTS) {
-      head.classList.remove("compact", "wrapped");
-      head.classList.add(...layout);
-      // On one line: each box level with the first, its items being centred on the line.
-      const level = (boxes) => boxes.every((b) => b.top < boxes[0].bottom && boxes[0].top < b.bottom);
-      const boxes = (els) => els.map((e) => e.getBoundingClientRect());
-      const fits = level(boxes(layout.includes("wrapped") ? [...controls.children] : [titles, controls]));
-      if (fits) break;
-    }
+    head.classList.remove("compact");
+    if ([...titles.children].some((line) => line.scrollWidth > titles.clientWidth)) head.classList.add("compact");
   }
   for (const el of root.querySelectorAll(".seg, .block")) {
     el.classList.remove("clipped");
@@ -428,10 +413,9 @@ const STYLES = `
     container-type: inline-size;
   }
   ha-card { display: block; padding: 20px 20px 18px; }
-  /* The controls go under the titles when the two don't fit side by side. */
-  .head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 18px; }
-  /* At least as wide as the title's longest word. */
-  .titles { flex: 1 1 10em; min-width: min-content; }
+  .head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 8px; margin-bottom: 18px; }
+  .titles { min-width: 0; }
+  .title, .subtitle { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
   .title { font-size: 1.35rem; font-weight: 600; line-height: 1.2; }
   .subtitle { color: var(--u0-muted); margin-top: 4px; font-size: 0.95rem; }
   .pill {
@@ -444,14 +428,14 @@ const STYLES = `
   .pill.cooling { background: var(--state-climate-cool-color, #2196f3); color: #fff; }
   button.pill { cursor: pointer; }
   .pill ha-icon { --mdc-icon-size: 20px; }
-  /* On a line of their own, the controls wrap rather than leave the card. */
-  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
-  /* The edit button's icon, not the circle around it, at the card's edge. */
-  .controls > .edit-button { margin-right: -8px; }
-  .head.wrapped > .controls { flex-basis: 100%; }
-  /* Short of room, the pills keep their icons and lose their text. */
-  .head.compact .pill { padding: 8px; gap: 0; }
-  .head.compact .pill .text { display: none; }
+  .controls { grid-area: 1 / 2; display: flex; align-items: center; gap: 8px; }
+  /* Keep the text block beside the controls, reducing button labels when space is tight. */
+  .head.compact, .head.compact .controls { column-gap: 4px; }
+  .head.compact .pill { padding-inline: 8px; gap: 4px; }
+  .head.compact .edit-button { width: 32px; }
+  .head.compact .boost { padding: 8px; gap: 0; }
+  .head.compact .boost .text { display: none; }
+  .head.compact [role="switch"] { font-size: 0.95rem; }
   .boost-wrap { position: relative; }
   .pill.boost { font-size: 0.95rem; padding: 8px 14px; }
   .pill.boost.active { background: var(--u0-boost); color: #fff; }
@@ -469,7 +453,10 @@ const STYLES = `
   .heating-now { display: inline-flex; align-items: center; gap: 4px; margin-top: 6px; color: var(--u0-warm);
     font-weight: 600; font-size: 0.88rem; }
   .heating-now ha-icon { --mdc-icon-size: 16px; }
-  .week { display: grid; grid-template-columns: 44px 1fr; row-gap: 10px; align-items: center; }
+  .week { display: grid; row-gap: 10px; }
+  .week-row { display: grid; grid-template-columns: 44px minmax(0, 1fr); align-items: center; background: none;
+    border: 0; border-radius: 9px; color: inherit; padding: 0; font: inherit; text-align: start; min-width: 0; }
+  .week-row:focus-visible { outline: 2px solid var(--primary-color, currentColor); outline-offset: 3px; }
   .day { font-weight: 600; color: var(--u0-muted); font-size: 0.95rem; }
   .day.today { color: var(--u0-text); }
   .bar {
@@ -478,7 +465,7 @@ const STYLES = `
   }
   .bar.today { outline: 1px solid var(--u0-line); outline-offset: 2px; }
   .week [data-action] { cursor: pointer; }
-  .bar[data-action]:hover { filter: brightness(1.12); }
+  button.week-row:hover .bar { filter: brightness(1.12); }
   .seg {
     position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center;
     font-weight: 600; font-size: 0.82rem; white-space: nowrap; overflow: hidden;
@@ -503,7 +490,7 @@ const STYLES = `
   @container (max-width: 420px) {
     .seg.small, .block.small { color: transparent; }
     .title { font-size: 1.2rem; }
-    .week { grid-template-columns: 38px 1fr; }
+    .week-row { grid-template-columns: 38px minmax(0, 1fr); }
     .axis.indent { margin-left: 38px; }
     ha-card { padding: 16px 14px 14px; }
   }
@@ -719,7 +706,7 @@ class ScheduleCard extends HTMLElement {
   _render() {
     if (!this._config || !this.shadowRoot) return;
     if (!this.shadowRoot.querySelector("ha-card")) {
-      this.shadowRoot.innerHTML = `<style>${STYLES}</style><ha-card></ha-card><dialog></dialog>`;
+      this.shadowRoot.innerHTML = `<style>${STYLES}</style><ha-card></ha-card><dialog aria-labelledby="editor-title"></dialog>`;
       this.shadowRoot.addEventListener("click", (e) => this._click(e));
       this.shadowRoot.addEventListener("change", (e) => this._change(e));
       // A field's change fires as a press elsewhere blurs it: the editor is
@@ -741,8 +728,13 @@ class ScheduleCard extends HTMLElement {
       resized.observe(this.shadowRoot.querySelector("ha-card"));
       resized.observe(dialog);
       dialog.addEventListener("close", () => {
+        if (dialog.open) return;
         this._editor = null;
         this._drag = null;
+        // A card refresh can replace the opener while the editor is open.
+        if (this._opener && (document.activeElement === document.body || dialog.contains(this.shadowRoot.activeElement)))
+          this.shadowRoot.querySelector(this._opener)?.focus({ preventScroll: true });
+        this._opener = null;
       });
       // Escape asks before changes are discarded; pressed again, it closes.
       dialog.addEventListener("cancel", (e) => {
@@ -768,7 +760,9 @@ class ScheduleCard extends HTMLElement {
     this.classList.toggle("ranging", state.attributes.mode === "range");
     this.setAttribute("lang", language);
     this._language = language;
+    const focusedDay = this.shadowRoot.activeElement?.closest(".week-row")?.dataset.day;
     card.innerHTML = this._cardHtml(state);
+    if (focusedDay !== undefined) card.querySelector(`button[data-day="${focusedDay}"]`)?.focus({ preventScroll: true });
     fit(card);
   }
 
@@ -790,9 +784,13 @@ class ScheduleCard extends HTMLElement {
     return `<button class="icon-button edit-button" data-action="open" aria-label="${t("edit")}" title="${t("edit_hint")}"><ha-icon icon="mdi:pencil-outline"></ha-icon></button>`;
   }
 
-  /** What has a day's name and bar open the editor on that day. */
-  _opens(state, day) {
-    return this._editable(state) ? ` data-action="open" data-day="${day}"` : "";
+  _dayRow(state, day, now, bar) {
+    const today = day === now.day;
+    const cls = today ? " today" : "";
+    const marker = today ? `<span class="now" style="left:${along(now.minute)}"></span>` : "";
+    const content = `<span class="day${cls}">${dayName(day)}</span><span class="bar${cls}">${bar}${marker}</span>`;
+    if (!this._editable(state)) return `<div class="week-row">${content}</div>`;
+    return `<button class="week-row" data-action="open" data-day="${day}" aria-label="${t("edit")} · ${dayName(day, "long")}">${content}</button>`;
   }
 
   /** A time field, "06 : 30", for row `i`'s `field`; on the 12-hour clock "6 : 30" and a button between AM and PM. */
@@ -814,6 +812,7 @@ class ScheduleCard extends HTMLElement {
   /** Opens the editor on `day`, or on today. */
   _open(day) {
     const state = this._state;
+    this._opener = day === undefined ? ".edit-button" : `.week-row[data-day="${day}"]`;
     const week = this._week(state);
     const draft = {};
     for (const name of DAYS) draft[name] = this._rowsOf(week[name] ?? []);
@@ -873,21 +872,19 @@ class ScheduleCard extends HTMLElement {
       // While copying, the other days' tabs take the shown day's rows or give them back.
       const pick = e.copying && i !== e.day;
       const title = pick ? t("copy_day_hint", { day: dayName(i, "long") }) : dayName(i, "long");
-      return `<button class="tab${selected}${changed}${pick ? " pick" : ""}" data-action="day" data-day="${i}" title="${title}">
+      return `<button class="tab${selected}${changed}${pick ? " pick" : ""}" data-action="day" data-day="${i}" aria-pressed="${i === e.day || e.copy.has(d)}" title="${title}">
         <span class="label">${dayName(i)}</span><span class="mini">${this._miniHtml(week, i)}</span></button>`;
     }).join("");
     const actions = e.discarding
       ? `<span class="ask">${t("discard_question")}</span>
           <span class="answers"><button class="action" data-action="keep">${t("keep_editing")}</button>
             <button class="action danger" data-action="discard">${t("discard")}</button></span>`
-      : `<button class="action${e.copying ? " active" : ""}" data-action="copy" aria-pressed="${e.copying}" title="${t("copy_hint")}"><ha-icon icon="mdi:content-copy"></ha-icon>${t("copy")}</button>
+      : `<button class="action${e.copying ? " active" : ""}" data-action="copy" aria-pressed="${e.copying}" ${e.saving ? "disabled" : ""} title="${t("copy_hint")}"><ha-icon icon="mdi:content-copy"></ha-icon>${t("copy")}</button>
           <button class="action primary${this._water ? " water" : ""}" data-action="save" title="${t("save_hint")}"
             ${!Object.keys(changes).length || problems.size || e.saving ? "disabled" : ""}>${e.saving ? t("saving") : t("save")}</button>`;
-    // A copy that would be refused, by the day it goes to.
-    const copied = [...problems]
-      .filter(([key]) => e.copy.has(key.split(":")[0]))
-      .flatMap(([key, texts]) => texts.map((text) => `${dayName(DAYS.indexOf(key.split(":")[0]), "long")}: ${text}`));
-    const errors = [...new Set([...(problems.get(name) ?? []), ...copied]), ...(e.error ? [e.error] : [])];
+    const errors = DAYS.flatMap((d, i) => (problems.get(d) ?? []).map((text) =>
+      d === name ? text : `${dayName(i, "long")}: ${text}`));
+    if (e.error) errors.push(e.error);
     // The time field being typed in, or the button pressed from the keyboard, to have it again once redrawn.
     const active = this.shadowRoot.activeElement;
     const focus = active && dialog.contains(active)
@@ -896,7 +893,7 @@ class ScheduleCard extends HTMLElement {
     dialog.innerHTML = `
       <div class="panel${this._drag ? " dragging" : ""}" role="document">
         <div class="panel-head">
-          <span class="panel-title">${escapeHtml(this._title())}</span>
+          <span class="panel-title" id="editor-title">${escapeHtml(this._title())}</span>
           <button class="icon-button" data-action="close" aria-label="${t("close")}" title="${t("close_hint")}"><ha-icon icon="mdi:close"></ha-icon></button>
         </div>
         <div class="tabs">${tabs}</div>
@@ -908,7 +905,7 @@ class ScheduleCard extends HTMLElement {
           <button class="add" data-action="add" title="${rows.length >= max ? t("at_most_a_day", { max }) : this._addLabel}" ${rows.length >= max ? "disabled" : ""}>
             <ha-icon icon="mdi:plus"></ha-icon>${this._addLabel}</button>
         </div>
-        ${errors.length ? `<div class="errors">${errors.map(escapeHtml).join("<br>")}</div>` : ""}
+        ${errors.length ? `<div class="errors">${[...new Set(errors)].map(escapeHtml).join("<br>")}</div>` : ""}
         <div class="actions">${actions}</div>
       </div>`;
     fit(dialog);
@@ -1186,7 +1183,7 @@ class Unfr0zenHeatingCard extends ScheduleCard {
         const cls = `seg${w > 45 ? " warm" : ""}${width < 13 ? " small" : ""}${this._range && s.start > 0 ? " divided" : ""}`;
         const label = labels && width >= (s.high === null ? 6 : 11) ? temps(s) : "";
         const title = labels ? ` title="${clock(s.start)}–${clock(s.end)} · ${temps(s)}"` : "";
-        return `<div class="${cls}" style="${style}"${title}>${label}</div>`;
+        return `<span class="${cls}" style="${style}"${title}>${label}</span>`;
       })
       .join("");
   }
@@ -1198,47 +1195,37 @@ class Unfr0zenHeatingCard extends ScheduleCard {
     const warmth = this._warmth(points);
     const { current, next } = heatingNow(points, now);
     const away = unavailable(state);
-    let subtitle = t(away ? "unavailable" : "no_schedule");
-    if (current && !away) {
-      subtitle = t("set_to", { temps: temps(current) });
-      if (next) subtitle += ` · ${t("next_change", { temps: temps(next), when: when(now, next.day, next.minute, next.ahead) })}`;
-    }
-    const rows = DAYS.map((_, day) => {
-      const today = day === now.day;
-      const marker = today ? `<div class="now" style="left:${(now.minute / DAY) * 100}%"></div>` : "";
-      const bar = points.length && !away
-        ? this._segmentsHtml(points, day, true, warmth)
-        : `<span class="empty">${t(away ? "unavailable" : "no_setpoints")}</span>`;
-      return `<div class="day${today ? " today" : ""}"${this._opens(state, day)}>${dayName(day)}</div>
-        <div class="bar${today ? " today" : ""}"${this._opens(state, day)}>${bar}${marker}</div>`;
-    }).join("");
+    const climate = this._hass.states[this._relatedEntity()];
+    const a = climate && !["unavailable", "unknown"].includes(climate.state) ? climate.attributes : {};
+    const live = a.temperature != null ? shown(Number(a.temperature))
+      : a.target_temp_low != null && a.target_temp_high != null ? `${shown(Number(a.target_temp_low))}–${shown(Number(a.target_temp_high))}` : "";
+    const scheduled = current && !away ? temps(current) : "";
+    const notes = [];
+    if (!scheduled) notes.push(t(away ? "unavailable" : "no_schedule"));
+    if (next && !away) notes.push(t("next_change", { temps: temps(next), when: when(now, next.day, next.minute, next.ahead) }));
+    if (scheduled && live && live !== scheduled) notes.push(t("scheduled_temp", { temps: scheduled }));
+    const subtitle = escapeHtml(notes.join(" · "));
+    const rows = DAYS.map((_, day) => this._dayRow(state, day, now, points.length && !away
+      ? this._segmentsHtml(points, day, true, warmth)
+      : `<span class="empty">${t(away ? "unavailable" : "no_setpoints")}</span>`)).join("");
     return `
       <div class="head">
         <div class="titles"><div class="title">${escapeHtml(this._title())}</div>
-          <div class="subtitle">${escapeHtml(subtitle)}</div></div>
-        <div class="controls">${this._pillHtml(current)}${this._editHtml(state)}</div>
+          ${subtitle ? `<div class="subtitle" title="${subtitle}">${subtitle}</div>` : ""}</div>
+        <div class="controls">${this._pillHtml(live, scheduled, a.hvac_action)}${this._editHtml(state)}</div>
       </div>
       <div class="week">${rows}</div>
       ${this._axis(true)}`;
   }
 
-  _pillHtml(current) {
-    const climate = this._relatedEntity() && this._hass.states[this._relatedEntity()];
-    let text = current ? temps(current) : "–";
-    let action = null;
-    if (climate) {
-      const a = climate.attributes;
-      // The climate entity's own, in Home Assistant's unit.
-      if (a.temperature != null) text = shown(Number(a.temperature));
-      else if (a.target_temp_low != null && a.target_temp_high != null)
-        text = `${shown(Number(a.target_temp_low))}–${shown(Number(a.target_temp_high))}`;
-      // Lit while the thermostat heats or cools.
-      if (a.hvac_action === "heating" || a.hvac_action === "cooling") action = a.hvac_action;
-    }
-    const hint = t(action ? `target_${action}` : "target");
+  _pillHtml(live, scheduled, hvacAction) {
+    if (!live && !scheduled) return "";
+    const text = live || t("scheduled_temp", { temps: scheduled });
+    const action = hvacAction === "heating" || hvacAction === "cooling" ? hvacAction : "";
+    const hint = live ? t(action ? `target_${action}` : "target") : text;
     // The schedule's mode, in Home Assistant's icons for it.
     const icon = { cool: "mdi:snowflake", range: "mdi:sun-snowflake-variant" }[this._state?.attributes.mode] ?? "mdi:fire";
-    return `<span class="pill${action ? ` ${action}` : ""}" title="${text} · ${hint}"><ha-icon icon="${icon}"></ha-icon><span class="text">${text}</span></span>`;
+    return `<span class="pill${action ? ` ${action}` : ""}" title="${hint}"><ha-icon icon="${icon}"></ha-icon><span class="text">${text}</span></span>`;
   }
 
   // --- Editor rows: a time and a temperature ---
@@ -1482,7 +1469,7 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
         const width = ((b.end - b.start) / DAY) * 100;
         const label = labels && b.first && width >= 5 ? duration(b.length) : "";
         const title = labels ? ` title="${clock(b.start)}–${clock(b.end)} · ${duration(b.length)}"` : "";
-        return `<div class="block${width < 9 ? " small" : ""}" style="left:${left}%;width:${width}%"${title}>${label}</div>`;
+        return `<span class="block${width < 9 ? " small" : ""}" style="left:${left}%;width:${width}%"${title}>${label}</span>`;
       })
       .join("");
   }
@@ -1495,8 +1482,7 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
     let subtitle = t("no_periods");
     if (spans.length) {
       const next = status.next ? t("next_period", { when: when(now, status.next.day, status.next.on, status.next.ahead) }) : "";
-      const state = status.on ? t("on_until", { time: clock(status.until) }) : t("off");
-      subtitle = next ? `${state} · ${next}` : state;
+      subtitle = [status.on ? t("on_until", { time: clock(status.until) }) : "", next].filter(Boolean).join(" · ");
     }
     if (boost.active) subtitle = boost.minutes ? t("boosting_for", { duration: duration(boost.minutes) }) : t("boosting");
     const away = unavailable(state);
@@ -1505,33 +1491,30 @@ class Unfr0zenHotWaterCard extends ScheduleCard {
     const heating = active && this._hass.states[active]?.state === "on"
       ? `<div class="heating-now"><ha-icon icon="mdi:fire"></ha-icon>${t("heating_now")}</div>`
       : "";
-    const rows = DAYS.map((_, day) => {
-      const today = day === now.day;
-      const marker = today ? `<div class="now" style="left:${(now.minute / DAY) * 100}%"></div>` : "";
-      return `<div class="day${today ? " today" : ""}"${this._opens(state, day)}>${dayName(day)}</div>
-        <div class="bar${today ? " today" : ""}"${this._opens(state, day)}>${away ? `<span class="empty">${t("unavailable")}</span>` : this._blocksHtml(spans, day, true)}${marker}</div>`;
-    }).join("");
+    const rows = DAYS.map((_, day) => this._dayRow(state, day, now,
+      away ? `<span class="empty">${t("unavailable")}</span>` : this._blocksHtml(spans, day, true))).join("");
     return `
       <div class="head">
         <div class="titles"><div class="title">${escapeHtml(this._title())}</div>
-          <div class="subtitle">${escapeHtml(subtitle)}</div>${heating}</div>
-        <div class="controls">${this._boostHtml(boost)}${this._pillHtml(state, status)}${this._editHtml(state)}</div>
+          <div class="subtitle" title="${escapeHtml(subtitle)}">${escapeHtml(subtitle)}</div>${heating}</div>
+        <div class="controls">${this._boostHtml(boost)}${this._pillHtml()}${this._editHtml(state)}</div>
       </div>
       <div class="week">${rows}</div>
       ${this._axis(true)}`;
   }
 
-  /** On/off: the schedule switch's, else the water heater's (anything but "off"), else the calendar's. */
-  _pillHtml(state, status) {
+  _pillHtml() {
     const { switch: sw, waterHeater } = this._related();
-    const entity = (sw && this._hass.states[sw]) || (waterHeater && this._hass.states[waterHeater]);
-    if (entity) {
-      const on = sw && this._hass.states[sw] ? entity.state === "on" : entity.state !== "off";
-      return `<button class="pill${on ? " on" : ""}" data-action="toggle" title="${t(on ? "turn_off" : "turn_on")}">
-        <ha-icon icon="mdi:water-boiler"></ha-icon><span class="text">${t(on ? "on" : "off")}</span></button>`;
-    }
-    const on = state.state === "on" || status.on;
-    return `<span class="pill${on ? " on" : ""}" title="${t(on ? "on_now" : "off_now")}"><ha-icon icon="mdi:water-boiler"></ha-icon><span class="text">${t(on ? "on" : "off")}</span></span>`;
+    const schedule = this._hass.states[sw];
+    const entity = schedule || this._hass.states[waterHeater];
+    if (!entity) return "";
+    const available = !["unknown", "unavailable"].includes(entity.state);
+    const on = available && (schedule ? entity.state === "on" : entity.state !== "off");
+    const label = t(schedule ? "schedule" : "hot_water");
+    const status = t(!available ? "unavailable" : on ? "on" : "off");
+    return `<button class="pill${on ? " on" : ""}" data-action="toggle" role="switch" aria-label="${label}" aria-checked="${on}"
+      title="${available ? t(on ? "turn_off" : "turn_on") : status}" ${available ? "" : "disabled"}>
+      <ha-icon icon="mdi:water-boiler"></ha-icon><span class="text">${status}</span></button>`;
   }
 
   async _toggle() {

@@ -167,16 +167,19 @@ type: custom:unfr0zen-hot-water-card
 entity: calendar.nest_thermostat_hot_water_schedule
 ```
 
-- **Heating** shows the week's setpoints, the one in effect and the next, and the thermostat's target, lit in Home
-  Assistant's heating or cooling colour while the Nest heats or cools. In Cool it shows the cooling schedule, titled
-  **Cooling**; in Heat·Cool the heat-cool one, titled **Heat/cool**, each change a low and a high.
-- **Hot water** shows the week's on periods, whether hot water is on now and when it next comes on, with its boost and
-  its on/off switch. Boost runs for 30 minutes, 1 or 2 hours over MQTT and Matter, and over Zigbee2MQTT when the
+- **Heating** shows the week's setpoints and the next change. The pill shows the thermostat's target, lit in Home
+  Assistant's heating or cooling colour while the Nest heats or cools. If the target differs from the schedule, the subtitle also
+  shows the scheduled temperature. With no live target, the pill shows the scheduled temperature. In Cool, the card shows the
+  **Cooling** schedule. In Heat·Cool, it shows the **Heat/cool** schedule with a low and a high for each change.
+- **Hot water** shows the week's on periods and the next scheduled run. **Heating now** follows the Nest’s activity
+  sensor when available. The boiler button shows **On** or **Off** and toggles the schedule switch or the linked
+  water heater. Boost runs for 30 minutes, 1 or 2 hours over MQTT and Matter, and over Zigbee2MQTT when the
   converter offers those lengths; otherwise for the Nest's fixed 30 minutes.
-- **The pencil** opens the editor on today, and **a day's bar** on that day: change, add or remove setpoints or periods,
-  and save; the Nest takes the days changed in one write. Closing with changes unsaved asks first.
-- **Copy to…** has the other days' tabs give those days the shown day's schedule: press a tab to copy to it, and again
-  to take that back.
+- **The pencil** opens the editor on today. Click a day's row or focus it and press Enter or Space to edit that day.
+  Add, change or remove setpoints or periods, then save. The Nest takes the changed days in one write. Closing with
+  unsaved changes asks first.
+- **Copy to…** lets you select destination days using the day tabs. Press a tab again to deselect it, then **Save**
+  to send the changed days to the Nest.
 - **Hover over a slot** for its times. Times are on Home Assistant's 12- or 24-hour clock, as your profile has it.
 - **Drag on the day's bar** to change times, in steps of 15 minutes. An edge changes one time; where two slots meet,
   both follow it. The middle of a slot moves it whole, keeping its length: a hot water period only as far as the free
