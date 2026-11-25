@@ -482,7 +482,7 @@ const STYLES = `
     background: var(--u0-fill); color: #fff;
   }
   @supports (color: contrast-color(red)) {
-    .pill.heating, .pill.cooling, .pill.boost.active, .action.primary, .action.danger { color: contrast-color(var(--u0-fill)); }
+    .pill.heating, .pill.cooling, .pill.boost.active, .action.primary, .action.danger,
     .pill.on, .seg, .seg.warm, .block { color: light-dark(contrast-color(var(--u0-fill)), #fff); }
   }
   .now { position: absolute; top: -2px; bottom: -2px; width: 3px; margin-left: -1.5px; background: #fff;

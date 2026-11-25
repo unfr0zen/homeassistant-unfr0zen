@@ -117,6 +117,9 @@ def capture(page: Page, api, compose, theme, output):
     def shot(target, name):
         screenshot(target, output / f"{name}-{theme}.png")
 
+    def expect_white(target):
+        expect(target).to_have_css("color", "rgb(255, 255, 255)")
+
     for name, mode, instant, target in [
         ("heating", "heat", "2026-11-22T13:18:00Z", {"temperature": 19.5}),
         ("hot-water", "heat", "2026-11-23T06:40:00Z", None),
@@ -145,17 +148,50 @@ def capture(page: Page, api, compose, theme, output):
             expect(switch).to_have_attribute("aria-checked", "true")
             expect(host.locator(".heating-now")).to_be_visible()
             if theme == "dark":
-                expect(switch).to_have_css("color", "rgb(255, 255, 255)")
-                expect(switch.locator("ha-icon")).to_have_css("color", "rgb(255, 255, 255)")
+                expect_white(switch)
+                expect_white(switch.locator("ha-icon"))
         shot(host.locator("ha-card"), name + "-card")
         if name == "hot-water":
+            if theme == "dark":
+                for state in ("30", "off"):
+                    api.post(
+                        "/api/states/select.preview_boost",
+                        data=dict(state=state, attributes={"options": ["off", "30", "60", "120"]}),
+                        fail_on_status_code=True,
+                    )
+                    boost = host.locator(".pill.boost.active")
+                    if state == "30":
+                        expect_white(boost)
+                        expect_white(boost.locator("ha-icon"))
+                    else:
+                        expect(boost).to_have_count(0)
             continue
+        if theme == "dark":
+            action = "cooling" if mode == "cool" else "heating"
+            api.post(
+                "/api/states/climate.preview",
+                data=dict(state=mode, attributes={**target, "hvac_action": action}),
+                fail_on_status_code=True,
+            )
+            pill = host.locator(f".pill.{action}")
+            expect_white(pill)
+            expect_white(pill.locator("ha-icon"))
         host.evaluate("el => el.style.width = '544px'")
         host.locator('.week-row[data-day="6"]').click()
         panel = host.locator("dialog[open] .panel")
         expect(panel.locator(".day-name")).to_have_text("Sunday")
         shot(panel, name + "-editor")
-        page.keyboard.press("Escape")
+        if theme == "dark":
+            panel.locator('[data-action="step"][data-by="1"]').first.click()
+            save = panel.locator('[data-action="save"]')
+            expect(save).to_be_enabled()
+            expect_white(save)
+            page.keyboard.press("Escape")
+            discard = panel.locator('[data-action="discard"]')
+            expect_white(discard)
+            discard.click()
+        else:
+            page.keyboard.press("Escape")
         if name == "heating":
             calendar = page.locator("hui-calendar-card")
             calendar.evaluate("el => Object.assign(el.style, {display:'block', width:'700px'})")
