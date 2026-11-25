@@ -72,7 +72,7 @@ async def test_z2m_display_discovers_partial_reports_and_writes(hass, mqtt_mock)
     assert er.async_get(hass).async_get_entity_id("select", "unfr0zen", f"{entry.unique_id}-theme") is None
 
 
-@pytest.mark.parametrize("transport", ["zha", "matter"])
+@pytest.mark.parametrize("transport", ["zha"])
 async def test_native_controls_follow_only_the_paired_devices_writable_entities(hass, transport):
     owner = MockConfigEntry(domain=transport)
     owner.add_to_hass(hass)
@@ -111,4 +111,47 @@ async def test_native_controls_follow_only_the_paired_devices_writable_entities(
     registry.async_remove(dimmer.entity_id)
     await hass.async_block_till_done()
     assert hass.states.get(visible).state == "unavailable"
+    assert await hass.config_entries.async_unload(entry.entry_id)
+
+
+async def test_matter_presets_stand_for_the_screen_numbers(hass):
+    owner = MockConfigEntry(domain="matter")
+    owner.add_to_hass(hass)
+    source = dr.async_get(hass).async_get_or_create(
+        config_entry_id=owner.entry_id, identifiers={("matter", IEEE)}, name="Hall"
+    )
+    entry = MockConfigEntry(domain="unfr0zen", data={"transport": "matter", "device_id": source.id})
+    entry.add_to_hass(hass)
+    with patch("custom_components.unfr0zen.calendar.async_start_calendars", side_effect=PlatformNotReady("offline")):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+    registry = er.async_get(hass)
+    timeout = registry.async_get_or_create(
+        "select",
+        "matter",
+        "node-48-MatterModeSelect-80-3",
+        config_entry=owner,
+        device_id=source.id,
+        original_name="Mode (Screen timeout)",
+        suggested_object_id="source_timeout",
+    )
+    options = ["10 s", "15 s", "30 s", "45 s", "1 min", "2 min", "5 min", "10 min", "Custom"]
+    hass.states.async_set(timeout.entity_id, "2 min", {"options": options})
+    await hass.async_block_till_done()
+    visible = registry.async_get_entity_id("number", "unfr0zen", f"{entry.entry_id}-screen_timeout")
+    assert float(hass.states.get(visible).state) == 120
+    hass.states.async_set(timeout.entity_id, "Custom", {"options": options})
+    await hass.async_block_till_done()
+    assert hass.states.get(visible).state == "unknown"
+    received = []
+
+    async def select_option(call: ServiceCall):
+        received.append(dict(call.data))
+
+    hass.services.async_register("select", "select_option", select_option)
+    await entry.runtime_data.display.async_write("screen_timeout", 50, None)
+    await entry.runtime_data.display.async_write("screen_timeout", 300, None)
+    assert received == [
+        {"entity_id": timeout.entity_id, "option": "45 s"},
+        {"entity_id": timeout.entity_id, "option": "5 min"},
+    ]
     assert await hass.config_entries.async_unload(entry.entry_id)

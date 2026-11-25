@@ -3,6 +3,7 @@
 from collections.abc import Callable
 import json
 import logging
+import re
 from typing import Any
 
 from homeassistant.components import mqtt
@@ -15,7 +16,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
 
-from .const import CONF_BASE, CONF_IEEE, CONF_NAME, CONF_TRANSPORT, NESTLOCAL, Z2M, ZHA
+from .const import CONF_BASE, CONF_IEEE, CONF_NAME, CONF_TRANSPORT, MATTER, NESTLOCAL, Z2M, ZHA
 from .device import thermostat_device
 
 # ZHA identifies these standard Analog Output and Binary Output clusters by endpoint.
@@ -32,6 +33,18 @@ DOMAINS = {
     "screen_brightness_auto": "switch",
     "screen_timeout": "number",
 }
+# Matter has no writable number: nestlocal offers these as presets in a
+# Mode Select, labelled "30 s", "2 min" or "40%", or "Custom" for any other value.
+MATTER_PRESETS = ("screen_timeout", "screen_brightness")
+PRESET = re.compile(r"(\d+) ?(s|min|%)")
+
+
+def preset_value(label: str) -> int | None:
+    """A preset's seconds or percentage; None for Custom."""
+    match = PRESET.fullmatch(label.strip())
+    if not match:
+        return None
+    return int(match[1]) * (60 if match[2] == "min" else 1)
 
 
 class DisplaySettings(DataUpdateCoordinator[dict[str, Any]]):
@@ -42,6 +55,9 @@ class DisplaySettings(DataUpdateCoordinator[dict[str, Any]]):
         self.transport = entry.data[CONF_TRANSPORT]
         self.online = True
         self.sources: dict[str, str] = {}
+
+    def _source_domain(self, key: str) -> str:
+        return "select" if self.transport == MATTER and key in MATTER_PRESETS else DOMAINS[key]
 
     async def async_start(self) -> None:
         if self.transport in (NESTLOCAL, Z2M):
@@ -105,6 +121,8 @@ class DisplaySettings(DataUpdateCoordinator[dict[str, Any]]):
                 if state is None or state.state == STATE_UNAVAILABLE:
                     continue
                 values[key] = state.state
+                if self._source_domain(key) != DOMAINS[key]:
+                    values[key] = preset_value(state.state)
                 if key == "theme":
                     values["themes"] = state.attributes.get("options", [])
             if self.data != values:
@@ -119,8 +137,8 @@ class DisplaySettings(DataUpdateCoordinator[dict[str, Any]]):
             for entity in entities:
                 if entity.disabled or entity.platform != self.transport:
                     continue
-                for key, domain in DOMAINS.items():
-                    if entity.domain != domain:
+                for key in DOMAINS:
+                    if entity.domain != self._source_domain(key):
                         continue
                     label = "home screen theme" if key == "theme" else key.replace("_", " ")
                     name = (entity.original_name or "").casefold()
@@ -155,7 +173,18 @@ class DisplaySettings(DataUpdateCoordinator[dict[str, Any]]):
                 await mqtt.async_publish(self.hass, f"{self.topic}/set", json.dumps({key: value}), retain=False)
             return
         target = {"entity_id": self.sources[key]}
-        domain = DOMAINS[key]
+        domain = self._source_domain(key)
+        if domain != DOMAINS[key]:
+            # The preset nearest the value asked for.
+            state = self.hass.states.get(self.sources[key])
+            presets = {
+                preset_value(option): option
+                for option in (state.attributes.get("options", []) if state else [])
+                if preset_value(option) is not None
+            }
+            if not presets:
+                raise HomeAssistantError("Display setting unavailable")
+            value = presets[min(presets, key=lambda preset: abs(preset - int(value)))]
         if domain == "switch":
             service = "turn_on" if value else "turn_off"
         elif domain == "number":
